@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "WanderMate",
+    "slug": "wandermate",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "wandermate",
+    "userInterfaceStyle": "automatic",
+    "icon": "./assets/wandermate-logo.png",
+    "splash": {
+      "image": "./assets/wandermate-logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/wandermate-logo.png",
+        "backgroundColor": "#000000"
+      },
+      "permissions": []
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
