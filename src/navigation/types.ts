@@ -12,6 +12,12 @@ export type RootStackParamList = {
   CreatePost: undefined;
   UploadStory: undefined;
   PlaceDetails: { id: string } | undefined;
+  AdminHiddenSpotReview:
+    | {
+        submissionId?: string;
+        action?: 'approved' | 'rejected';
+      }
+    | undefined;
 };
 
 export type TabParamList = {

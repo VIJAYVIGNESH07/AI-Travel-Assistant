@@ -1,15 +1,31 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useTheme } from '../../theme/ThemeProvider';
 
 type Props = {
   title: string;
   subtitle?: string;
   right?: React.ReactNode;
+  onPress?: () => void;
 };
 
-const SettingsRow = ({ title, subtitle, right }: Props) => {
+const SettingsRow = ({ title, subtitle, right, onPress }: Props) => {
   const theme = useTheme();
+
+  if (onPress) {
+    return (
+      <Pressable onPress={onPress} style={[styles.row, { borderBottomColor: theme.colors.border }]}>
+        <View style={styles.textBlock}>
+          <Text style={[styles.title, { color: theme.colors.textPrimary }]}>{title}</Text>
+          {subtitle ? (
+            <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>{subtitle}</Text>
+          ) : null}
+        </View>
+        {right}
+      </Pressable>
+    );
+  }
+
   return (
     <View style={[styles.row, { borderBottomColor: theme.colors.border }]}
     >

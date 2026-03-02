@@ -13,6 +13,7 @@ import TripPlannerScreen from '../screens/TripPlannerScreen';
 import CreatePostScreen from '../screens/CreatePostScreen';
 import UploadStoryScreen from '../screens/UploadStoryScreen';
 import PlaceDetailsScreen from '../screens/PlaceDetailsScreen';
+import AdminHiddenSpotReviewScreen from '../screens/AdminHiddenSpotReviewScreen';
 import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -37,6 +38,11 @@ const RootNavigator = () => {
       <Stack.Screen name="CreatePost" component={CreatePostScreen} options={{ headerShown: true, title: 'Create Post' }} />
       <Stack.Screen name="UploadStory" component={UploadStoryScreen} options={{ headerShown: true, title: 'Upload Story' }} />
       <Stack.Screen name="PlaceDetails" component={PlaceDetailsScreen} options={{ headerShown: true, title: 'Place Details' }} />
+      <Stack.Screen
+        name="AdminHiddenSpotReview"
+        component={AdminHiddenSpotReviewScreen}
+        options={{ headerShown: true, title: 'Hidden Spot Reviews' }}
+      />
     </Stack.Navigator>
   );
 };

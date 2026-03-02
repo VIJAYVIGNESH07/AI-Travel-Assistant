@@ -1,30 +1,45 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, StyleSheet, Text, Alert, Linking, ScrollView, Pressable } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../theme/ThemeProvider';
 import { exploreFilters, places } from '../data/mock';
 import SearchBar from '../components/molecules/SearchBar';
 import Chip from '../components/atoms/Chip';
+import MapViewCompat from '../components/molecules/MapViewCompat';
 import type { RootStackParamList } from '../navigation/types';
+import { getApprovedHiddenSpotPlaces } from '../utils/hiddenSpotStorage';
+import { useAppSelector } from '../redux/hooks';
 
 const ExploreScreen = () => {
   const theme = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const user = useAppSelector((state) => state.auth.user);
   const [query, setQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
-  const [selectedPlaceId, setSelectedPlaceId] = useState(places[0]?.id || '');
+  const [allPlaces, setAllPlaces] = useState(places);
+  const [selectedPlaceId, setSelectedPlaceId] = useState(allPlaces[0]?.id || '');
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const load = async () => {
+        const approvedHiddenSpots = await getApprovedHiddenSpotPlaces(user?.handle);
+        setAllPlaces([...approvedHiddenSpots, ...places]);
+      };
+
+      load();
+    }, [user?.handle])
+  );
 
   const filteredPlaces = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    let filtered = [...places];
+    let filtered = [...allPlaces];
 
     if (activeFilter === 'Recent') {
-      filtered = [...places].slice(0, 5);
+      filtered = [...allPlaces].slice(0, 5);
     } else if (activeFilter === 'New') {
-      filtered = [...places].slice(-5).reverse();
+      filtered = [...allPlaces].slice(-5).reverse();
     }
 
     if (!normalizedQuery) {
@@ -38,7 +53,7 @@ const ExploreScreen = () => {
         item.category.toLowerCase().includes(normalizedQuery) ||
         (item.description || '').toLowerCase().includes(normalizedQuery)
     );
-  }, [activeFilter, query]);
+  }, [activeFilter, query, allPlaces]);
 
   useEffect(() => {
     if (filteredPlaces.length === 0) {
@@ -53,7 +68,7 @@ const ExploreScreen = () => {
   }, [filteredPlaces, selectedPlaceId]);
 
   const selectedPlace = filteredPlaces.find((item) => item.id === selectedPlaceId) || filteredPlaces[0] || null;
-  const mapCenter = selectedPlace || filteredPlaces[0] || places[0];
+  const mapCenter = selectedPlace || filteredPlaces[0] || allPlaces[0] || places[0];
 
   const handleOpenVR = async () => {
     if (!selectedPlace?.vrLink) {
@@ -136,7 +151,7 @@ const ExploreScreen = () => {
 
       <View style={styles.mapWrap}>
         <View style={[styles.mapCard, { borderColor: theme.colors.border }]}>
-          <MapView
+          <MapViewCompat
             style={styles.map}
             initialRegion={{
               latitude: mapCenter.latitude,
@@ -144,16 +159,16 @@ const ExploreScreen = () => {
               latitudeDelta: 5,
               longitudeDelta: 5
             }}
-          >
-            {filteredPlaces.map((item) => (
-              <Marker
-                key={item.id}
-                coordinate={{ latitude: item.latitude, longitude: item.longitude }}
-                title={item.name}
-                onPress={() => setSelectedPlaceId(item.id)}
-              />
-            ))}
-          </MapView>
+            markers={filteredPlaces.map((item) => ({
+              id: item.id,
+              latitude: item.latitude,
+              longitude: item.longitude,
+              title: item.name,
+              onPress: () => setSelectedPlaceId(item.id)
+            }))}
+            fallbackTitle="Map preview is available on iOS/Android."
+            fallbackBody="Use the places list above to browse destinations on web."
+          />
           <View style={styles.mapHint}>
             <Text style={[styles.mapHintText, { color: theme.colors.textSecondary }]}>
               {filteredPlaces.length > 0 ? 'Interactive map' : 'No places found'}

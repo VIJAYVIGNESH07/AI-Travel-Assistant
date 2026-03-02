@@ -63,6 +63,15 @@ const SettingsScreen = () => {
           <SettingsRow title="App Version" subtitle="v1.0.0" />
         </View>
 
+        <View style={[styles.section, { backgroundColor: theme.colors.surface }]}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>Admin</Text>
+          <SettingsRow
+            title="Hidden Spot Review Queue"
+            right={<Text style={{ color: theme.colors.primary }}>Open</Text>}
+            onPress={() => navigation.navigate('AdminHiddenSpotReview')}
+          />
+        </View>
+
         <Pressable
           onPress={handleLogout}
           style={[styles.logoutButton, { borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}
