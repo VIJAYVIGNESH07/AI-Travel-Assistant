@@ -15,16 +15,16 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     },
     // Reduce connection timeout to fail fast and allow retries
     fetch: (url, options) => {
+      const mergedHeaders = new Headers((options as RequestInit | undefined)?.headers);
+      mergedHeaders.set('X-Bypass-SSL-Check', 'true');
+
       // Increase timeout for mobile networks
       return Promise.race([
         fetch(url, {
           ...options,
           // Allow insecure connections in development/mobile to bypass SSL issues
           // This is NOT recommended for production but helps diagnose 525 errors
-          headers: {
-            ...((options as RequestInit)?.headers as Record<string, string>),
-            'X-Bypass-SSL-Check': 'true'
-          }
+          headers: mergedHeaders
         } as RequestInit),
         new Promise<Response>((_resolve, reject) =>
           setTimeout(() => reject(new Error('Network timeout')), 30000)
