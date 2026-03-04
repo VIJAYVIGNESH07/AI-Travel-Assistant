@@ -16,8 +16,6 @@ type HiddenSpotMailPayload = {
   accessibility: string;
   bestTime: string;
   mediaCount: number;
-  approveUrl?: string;
-  rejectUrl?: string;
 };
 
 const buildSubject = (payload: HiddenSpotMailPayload) => {
@@ -54,8 +52,6 @@ const buildBody = (payload: HiddenSpotMailPayload) => {
 
 const buildHtmlBody = (payload: HiddenSpotMailPayload) => {
   const submittedTime = new Date(payload.submittedAt).toLocaleString();
-  const approveUrl = payload.approveUrl || `wandermate://admin-hidden-spot-review?submissionId=${encodeURIComponent(payload.submissionId)}&action=approved`;
-  const rejectUrl = payload.rejectUrl || `wandermate://admin-hidden-spot-review?submissionId=${encodeURIComponent(payload.submissionId)}&action=rejected`;
 
   return `
   <div style="font-family:Arial,sans-serif;padding:16px;color:#1e293b;">
@@ -74,13 +70,7 @@ const buildHtmlBody = (payload: HiddenSpotMailPayload) => {
       <tr><td style="padding:6px 0;font-weight:700;">Media Count</td><td style="padding:6px 0;">${payload.mediaCount}</td></tr>
       <tr><td style="padding:6px 0;font-weight:700;vertical-align:top;">Description</td><td style="padding:6px 0;">${payload.description || 'N/A'}</td></tr>
     </table>
-    <div style="margin-top:16px;display:flex;gap:8px;">
-      <a href="${approveUrl}" style="background:#10B981;color:#fff;padding:10px 14px;border-radius:8px;text-decoration:none;font-weight:700;display:inline-block;">Approve</a>
-      <a href="${rejectUrl}" style="background:#EF4444;color:#fff;padding:10px 14px;border-radius:8px;text-decoration:none;font-weight:700;display:inline-block;">Reject</a>
-    </div>
-    <p style="margin-top:10px;color:#64748B;">If buttons do not open, copy one of these links into your phone browser:</p>
-    <p style="margin:6px 0;color:#0EA5E9;word-break:break-all;">${approveUrl}</p>
-    <p style="margin:6px 0;color:#EF4444;word-break:break-all;">${rejectUrl}</p>
+    <p style="margin-top:12px;color:#64748B;">Approve/reject buttons are generated securely by backend.</p>
   </div>`;
 };
 
@@ -146,6 +136,7 @@ const sendViaDirectSendGrid = async (adminEmail: string, payload: HiddenSpotMail
           email: SENDGRID_FROM_EMAIL,
           name: SENDGRID_FROM_NAME
         },
+        subject,
         content: [
           { type: 'text/plain', value: text },
           { type: 'text/html', value: html }
@@ -177,9 +168,7 @@ export const sendHiddenSpotReviewEmail = async (adminEmail: string, payload: Hid
     const { error, data } = await supabase.functions.invoke('send-hidden-spot-review-email', {
       body: {
         to: adminEmail,
-        subject: buildSubject(payload),
-        text: buildBody(payload),
-        html: buildHtmlBody(payload)
+        payload
       }
     });
 
@@ -209,7 +198,7 @@ export const sendHiddenSpotReviewEmail = async (adminEmail: string, payload: Hid
     return true;
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    
+
     // If Supabase function invoke failed, try direct SendGrid as last resort
     if (message.includes('525') || message.includes('SSL') || message.includes('Network')) {
       console.warn('[Mail] Supabase function failed, attempting direct SendGrid fallback...');

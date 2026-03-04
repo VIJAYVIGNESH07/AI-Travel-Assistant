@@ -24,8 +24,13 @@ const ExploreScreen = () => {
   useFocusEffect(
     React.useCallback(() => {
       const load = async () => {
-        const approvedHiddenSpots = await getApprovedHiddenSpotPlaces(user?.handle);
-        setAllPlaces([...approvedHiddenSpots, ...places]);
+        try {
+          const approvedHiddenSpots = await getApprovedHiddenSpotPlaces(user?.handle);
+          setAllPlaces([...approvedHiddenSpots, ...places]);
+        } catch (error) {
+          console.warn('[Explore] Failed to load hidden spots:', error);
+          setAllPlaces([...places]);
+        }
       };
 
       load();

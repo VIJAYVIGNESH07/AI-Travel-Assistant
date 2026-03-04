@@ -88,4 +88,10 @@ export const updateStoredPostLikes = async (postId: string, likes: number): Prom
   await AsyncStorage.setItem(POSTS_KEY, JSON.stringify(next));
 };
 
+export const deleteStoredPost = async (postId: string): Promise<void> => {
+  const existing = await getStoredPosts();
+  const next = existing.filter((post) => post.id !== postId);
+  await AsyncStorage.setItem(POSTS_KEY, JSON.stringify(next));
+};
+
 export const toImageDataUri = (base64: string) => `data:image/jpeg;base64,${base64}`;

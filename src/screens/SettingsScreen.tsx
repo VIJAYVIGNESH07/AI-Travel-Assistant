@@ -32,6 +32,29 @@ const SettingsScreen = () => {
     ]);
   };
 
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'This will permanently delete all your data including posts, stories, and profile. This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Account',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await AsyncStorage.clear();
+              dispatch(signOut());
+              navigation.reset({ index: 0, routes: [{ name: 'Auth' }] });
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete account data.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -50,7 +73,7 @@ const SettingsScreen = () => {
           <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>Preferences</Text>
           <SettingsRow
             title="Dark Mode"
-            right={<Switch value={prefs.darkMode} onValueChange={() => dispatch(toggleDarkMode())} />}
+            right={<Switch value={prefs.darkMode} onValueChange={() => { dispatch(toggleDarkMode()); }} />}
           />
           <SettingsRow title="Language" subtitle={prefs.language} right={<Text style={{ color: theme.colors.primary }}>Change</Text>} />
         </View>
@@ -63,20 +86,18 @@ const SettingsScreen = () => {
           <SettingsRow title="App Version" subtitle="v1.0.0" />
         </View>
 
-        <View style={[styles.section, { backgroundColor: theme.colors.surface }]}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>Admin</Text>
-          <SettingsRow
-            title="Hidden Spot Review Queue"
-            right={<Text style={{ color: theme.colors.primary }}>Open</Text>}
-            onPress={() => navigation.navigate('AdminHiddenSpotReview')}
-          />
-        </View>
-
         <Pressable
           onPress={handleLogout}
           style={[styles.logoutButton, { borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}
         >
           <Text style={[styles.logoutText, { color: theme.colors.danger }]}>Log out</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={handleDeleteAccount}
+          style={[styles.deleteAccountButton, { backgroundColor: theme.colors.danger }]}
+        >
+          <Text style={styles.deleteAccountText}>Delete Account</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>
@@ -113,11 +134,22 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
     borderWidth: 1,
-    marginBottom: 20
+    marginBottom: 12
   },
   logoutText: {
     fontSize: 15,
     fontWeight: '700'
+  },
+  deleteAccountButton: {
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    marginBottom: 20
+  },
+  deleteAccountText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF'
   }
 });
 

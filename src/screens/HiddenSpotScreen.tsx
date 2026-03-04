@@ -4,7 +4,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { TextInput } from 'react-native-paper';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
-import * as ExpoLinking from 'expo-linking';
 import { Image } from 'expo-image';
 import { useTheme } from '../theme/ThemeProvider';
 import GradientButton from '../components/atoms/GradientButton';
@@ -169,53 +168,56 @@ const HiddenSpotScreen = () => {
     try {
       setIsSubmitting(true);
 
-      await addHiddenSpotSubmission({
-        id: submissionId,
-        submittedBy: user?.name || 'Traveler',
-        submittedByHandle: user?.handle || '@traveler',
-        submittedAt,
-        verify: false,
-        status: 'pending',
-        name: form.name.trim(),
-        locationLabel: locationLabel.trim() || 'Not specified',
-        latitude: coordinates.latitude,
-        longitude: coordinates.longitude,
-        category: form.category.trim(),
-        description: form.description.trim(),
-        accessibility: form.accessibility.trim(),
-        bestTime: form.bestTime.trim(),
-        imageBase64List: mediaList.map((item) => item.base64),
-        adminDecisionAt: null,
-        adminNotes: ''
-      });
+      try {
+        await addHiddenSpotSubmission({
+          id: submissionId,
+          submittedBy: user?.name || 'Traveler',
+          submittedByHandle: user?.handle || '@traveler',
+          submittedAt,
+          verify: false,
+          status: 'pending',
+          name: form.name.trim(),
+          locationLabel: locationLabel.trim() || 'Not specified',
+          latitude: coordinates.latitude,
+          longitude: coordinates.longitude,
+          category: form.category.trim(),
+          description: form.description.trim(),
+          accessibility: form.accessibility.trim(),
+          bestTime: form.bestTime.trim(),
+          imageBase64List: mediaList.map((item) => item.base64),
+          adminDecisionAt: null,
+          adminNotes: ''
+        });
+      } catch (dbError) {
+        const message = dbError instanceof Error ? dbError.message : 'Database error';
+        Alert.alert('Submission failed', `Could not save to database.\n\nReason: ${message}`);
+        return;
+      }
 
-      await sendHiddenSpotReviewEmail(HIDDEN_SPOT_ADMIN_EMAIL, {
-        submissionId,
-        submittedBy: user?.name || 'Traveler',
-        submittedByHandle: user?.handle || '@traveler',
-        submittedAt,
-        name: form.name.trim(),
-        category: form.category.trim(),
-        locationLabel: locationLabel.trim() || 'Not specified',
-        latitude: coordinates.latitude,
-        longitude: coordinates.longitude,
-        description: form.description.trim(),
-        accessibility: form.accessibility.trim(),
-        bestTime: form.bestTime.trim(),
-        mediaCount: mediaList.length,
-        approveUrl: ExpoLinking.createURL('admin-hidden-spot-review', {
-          queryParams: {
-            submissionId,
-            action: 'approved'
-          }
-        }),
-        rejectUrl: ExpoLinking.createURL('admin-hidden-spot-review', {
-          queryParams: {
-            submissionId,
-            action: 'rejected'
-          }
-        })
-      });
+      try {
+        await sendHiddenSpotReviewEmail(HIDDEN_SPOT_ADMIN_EMAIL, {
+          submissionId,
+          submittedBy: user?.name || 'Traveler',
+          submittedByHandle: user?.handle || '@traveler',
+          submittedAt,
+          name: form.name.trim(),
+          category: form.category.trim(),
+          locationLabel: locationLabel.trim() || 'Not specified',
+          latitude: coordinates.latitude,
+          longitude: coordinates.longitude,
+          description: form.description.trim(),
+          accessibility: form.accessibility.trim(),
+          bestTime: form.bestTime.trim(),
+          mediaCount: mediaList.length
+        });
+      } catch (emailError) {
+        const message = emailError instanceof Error ? emailError.message : 'Email error';
+        Alert.alert(
+          'Saved but email failed',
+          `Submission is saved as pending, but admin notification email failed.\n\nReason: ${message}\n\nThe admin can still review from the app.`
+        );
+        return;
+      }
 
       Alert.alert('Submitted', 'Hidden spot sent to admin for review and saved as pending.');
 
@@ -230,12 +232,6 @@ const HiddenSpotScreen = () => {
         accessibility: '',
         bestTime: ''
       });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown SendGrid error';
-      Alert.alert(
-        'Email sending failed',
-        `Submission is saved as pending, but admin email failed.\n\nReason: ${message}`
-      );
     } finally {
       setIsSubmitting(false);
     }

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, FlatList, Pressable, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, FlatList, Pressable, Modal, Alert } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,7 +10,8 @@ import { posts } from '../data/mock';
 import SegmentedControl from '../components/molecules/SegmentedControl';
 import { useAppSelector } from '../redux/hooks';
 import type { RootStackParamList } from '../navigation/types';
-import { getStoredPosts, getStoredStories, toImageDataUri } from '../utils/socialStorage';
+import { getStoredPosts, getStoredStories, deleteStoredPost, toImageDataUri } from '../utils/socialStorage';
+import { getApprovedHiddenSpotsForProfile, HiddenSpotProfileSpot } from '../utils/hiddenSpotStorage';
 
 type ProfilePost = {
   id: string;
@@ -31,9 +32,11 @@ const ProfileScreen = () => {
   const [profilePosts, setProfilePosts] = useState<ProfilePost[]>([]);
   const [postViewerVisible, setPostViewerVisible] = useState(false);
   const [selectedPostImage, setSelectedPostImage] = useState('');
+  const [selectedPostId, setSelectedPostId] = useState('');
   const [profileStoryUris, setProfileStoryUris] = useState<string[]>([]);
   const [storyViewerVisible, setStoryViewerVisible] = useState(false);
   const [storyIndex, setStoryIndex] = useState(0);
+  const [profileHiddenSpots, setProfileHiddenSpots] = useState<HiddenSpotProfileSpot[]>([]);
 
   const profile = user || {
     name: 'Sarah Thompson',
@@ -60,9 +63,16 @@ const ProfileScreen = () => {
         likes: item.likes,
         comments: item.comments
       }));
+    let approvedHiddenSpots: HiddenSpotProfileSpot[] = [];
+    try {
+      approvedHiddenSpots = await getApprovedHiddenSpotsForProfile(user?.handle);
+    } catch (error) {
+      console.warn('[Profile] Failed to load hidden spots:', error);
+    }
 
     setProfileStoryUris(ownStories.map((story) => toImageDataUri(story.imageBase64)));
     setProfilePosts(ownStoredPosts);
+    setProfileHiddenSpots(approvedHiddenSpots);
   }, [user?.handle, user?.name]);
 
   useFocusEffect(
@@ -116,7 +126,7 @@ const ProfileScreen = () => {
         </View>
 
         <View style={styles.tabs}>
-          <SegmentedControl options={['Posts', 'Spots']} value={tab} onChange={setTab} />
+          <SegmentedControl options={['Posts', 'Hidden Spots']} value={tab} onChange={setTab} />
         </View>
 
         {profileStoryUris.length > 0 ? (
@@ -136,24 +146,48 @@ const ProfileScreen = () => {
           </Pressable>
         ) : null}
 
-        <FlatList
-          data={profilePosts}
-          keyExtractor={(item) => item.id}
-          numColumns={3}
-          scrollEnabled={false}
-          columnWrapperStyle={styles.gridRow}
-          renderItem={({ item }) => (
-            <Pressable
-              style={styles.gridImageWrap}
-              onPress={() => {
-                setSelectedPostImage(item.image);
-                setPostViewerVisible(true);
-              }}
-            >
-              <Image source={{ uri: item.image }} style={styles.gridImage} />
-            </Pressable>
-          )}
-        />
+        {tab === 'Posts' ? (
+          <FlatList
+            data={profilePosts}
+            keyExtractor={(item) => item.id}
+            numColumns={3}
+            scrollEnabled={false}
+            columnWrapperStyle={styles.gridRow}
+            renderItem={({ item }) => (
+              <Pressable
+                style={styles.gridImageWrap}
+                onPress={() => {
+                  setSelectedPostId(item.id);
+                  setSelectedPostImage(item.image);
+                  setPostViewerVisible(true);
+                }}
+              >
+                <Image source={{ uri: item.image }} style={styles.gridImage} />
+              </Pressable>
+            )}
+          />
+        ) : (
+          <View style={styles.spotListWrap}>
+            {profileHiddenSpots.length === 0 ? (
+              <View style={[styles.emptySpotsState, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                <Text style={[styles.emptySpotsText, { color: theme.colors.textSecondary }]}>
+                  No approved hidden spots yet.
+                </Text>
+              </View>
+            ) : (
+              profileHiddenSpots.map((spot) => (
+                <View key={spot.id} style={[styles.spotCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                  {spot.image ? <Image source={{ uri: spot.image }} style={styles.spotImage} contentFit="cover" /> : null}
+                  <View style={styles.spotContent}>
+                    <Text style={[styles.spotName, { color: theme.colors.textPrimary }]}>{spot.name}</Text>
+                    <Text style={[styles.spotMeta, { color: theme.colors.textSecondary }]}>{spot.locationLabel}</Text>
+                    <Text style={[styles.spotMeta, { color: theme.colors.textSecondary }]}>{spot.category}</Text>
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
+        )}
       </ScrollView>
 
       <Modal visible={postViewerVisible} transparent={false} animationType="fade">
@@ -161,6 +195,31 @@ const ProfileScreen = () => {
           {selectedPostImage ? <Image source={{ uri: selectedPostImage }} style={styles.postViewerImage} contentFit="contain" /> : null}
           <Pressable style={styles.backButton} onPress={() => setPostViewerVisible(false)}>
             <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+          </Pressable>
+          <Pressable
+            style={styles.deleteButton}
+            onPress={() => {
+              Alert.alert('Delete Post', 'Are you sure you want to delete this post?', [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Delete',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      await deleteStoredPost(selectedPostId);
+                      setPostViewerVisible(false);
+                      setSelectedPostImage('');
+                      setSelectedPostId('');
+                      loadProfilePosts();
+                    } catch (error) {
+                      Alert.alert('Error', 'Failed to delete post.');
+                    }
+                  }
+                }
+              ]);
+            }}
+          >
+            <Ionicons name="trash-outline" size={22} color="#FFFFFF" />
           </Pressable>
         </View>
       </Modal>
@@ -281,6 +340,42 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 8
   },
+  spotListWrap: {
+    marginTop: 12,
+    paddingHorizontal: 20,
+    gap: 12
+  },
+  spotCard: {
+    borderWidth: 1,
+    borderRadius: 12,
+    overflow: 'hidden'
+  },
+  spotImage: {
+    width: '100%',
+    height: 140
+  },
+  spotContent: {
+    padding: 12
+  },
+  spotName: {
+    fontSize: 15,
+    fontWeight: '700'
+  },
+  spotMeta: {
+    marginTop: 4,
+    fontSize: 12
+  },
+  emptySpotsState: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    alignItems: 'center'
+  },
+  emptySpotsText: {
+    fontSize: 13,
+    fontWeight: '600'
+  },
   postViewer: {
     flex: 1,
     backgroundColor: '#000000'
@@ -324,6 +419,17 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  deleteButton: {
+    position: 'absolute',
+    top: 50,
+    right: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(220,38,38,0.8)',
     alignItems: 'center',
     justifyContent: 'center'
   }

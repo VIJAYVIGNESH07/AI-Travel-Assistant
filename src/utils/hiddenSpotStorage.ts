@@ -27,6 +27,16 @@ export type HiddenSpotSubmission = {
   adminNotes: string;
 };
 
+export type HiddenSpotProfileSpot = {
+  id: string;
+  name: string;
+  locationLabel: string;
+  category: string;
+  description: string;
+  image: string;
+  submittedAt: number;
+};
+
 type ExplorePlace = {
   id: string;
   name: string;
@@ -223,6 +233,7 @@ export const getApprovedHiddenSpotPlaces = async (submittedByHandle?: string): P
       .from(HIDDEN_SPOT_TABLE)
       .select('*')
       .eq('verify', true)
+      .eq('status', 'approved')
       .order('submitted_at', { ascending: false });
 
     if (submittedByHandle) {
@@ -254,7 +265,7 @@ export const getApprovedHiddenSpotPlaces = async (submittedByHandle?: string): P
   const submissions = await getHiddenSpotSubmissions();
 
   return submissions
-    .filter((item) => item.verify)
+    .filter((item) => item.verify && item.status === 'approved')
     .filter((item) => {
       if (!submittedByHandle) {
         return true;
@@ -277,9 +288,58 @@ export const getApprovedHiddenSpotPlaces = async (submittedByHandle?: string): P
     }));
 };
 
-export const applyHiddenSpotVerificationFromLink = async (
-  id: string,
-  action: 'approved' | 'rejected'
-): Promise<void> => {
-  await updateHiddenSpotSubmissionStatus(id, action);
+export const getApprovedHiddenSpotsForProfile = async (
+  submittedByHandle?: string
+): Promise<HiddenSpotProfileSpot[]> => {
+  if (isSupabaseConfigured) {
+    let query = supabase
+      .from(HIDDEN_SPOT_TABLE)
+      .select('*')
+      .eq('verify', true)
+      .eq('status', 'approved')
+      .order('submitted_at', { ascending: false });
+
+    if (submittedByHandle) {
+      query = query.eq('submitted_by_handle', submittedByHandle);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    const submissions = (data as HiddenSpotRow[]).map(mapRowToSubmission);
+
+    return submissions.map((item) => ({
+      id: item.id,
+      name: item.name,
+      locationLabel: item.locationLabel,
+      category: item.category || 'Hidden Spot',
+      description: item.description,
+      image: item.imageBase64List[0] ? toImageDataUri(item.imageBase64List[0]) : '',
+      submittedAt: item.submittedAt
+    }));
+  }
+
+  const submissions = await getHiddenSpotSubmissions();
+
+  return submissions
+    .filter((item) => item.verify && item.status === 'approved')
+    .filter((item) => {
+      if (!submittedByHandle) {
+        return true;
+      }
+
+      return item.submittedByHandle === submittedByHandle;
+    })
+    .map((item) => ({
+      id: item.id,
+      name: item.name,
+      locationLabel: item.locationLabel,
+      category: item.category || 'Hidden Spot',
+      description: item.description,
+      image: item.imageBase64List[0] ? toImageDataUri(item.imageBase64List[0]) : '',
+      submittedAt: item.submittedAt
+    }));
 };
+

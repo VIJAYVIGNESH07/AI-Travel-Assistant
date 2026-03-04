@@ -1,25 +1,26 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../theme/ThemeProvider';
 import {
   getHiddenSpotSubmissions,
   HiddenSpotSubmission,
   updateHiddenSpotSubmissionStatus
 } from '../utils/hiddenSpotStorage';
-import type { RootStackParamList } from '../navigation/types';
 
 const AdminHiddenSpotReviewScreen = () => {
   const theme = useTheme();
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const route = useRoute<any>();
   const [items, setItems] = useState<HiddenSpotSubmission[]>([]);
 
   const load = useCallback(async () => {
-    const submissions = await getHiddenSpotSubmissions();
-    setItems(submissions);
+    try {
+      const submissions = await getHiddenSpotSubmissions();
+      setItems(submissions);
+    } catch (error) {
+      console.warn('[AdminReview] Failed to load submissions:', error);
+      Alert.alert('Load failed', 'Could not fetch submissions from database.');
+    }
   }, []);
 
   useFocusEffect(
@@ -28,30 +29,15 @@ const AdminHiddenSpotReviewScreen = () => {
     }, [load])
   );
 
-  useFocusEffect(
-    useCallback(() => {
-      const submissionId = route.params?.submissionId as string | undefined;
-      const action = route.params?.action as 'approved' | 'rejected' | undefined;
-
-      if (!submissionId || !action) {
-        return;
-      }
-
-      const run = async () => {
-        await updateHiddenSpotSubmissionStatus(submissionId, action);
-        Alert.alert('Updated from email', `Submission marked as ${action}.`);
-        await load();
-        navigation.setParams({ submissionId: undefined, action: undefined });
-      };
-
-      run();
-    }, [route.params, load, navigation])
-  );
-
   const updateStatus = async (id: string, status: 'approved' | 'rejected') => {
-    await updateHiddenSpotSubmissionStatus(id, status);
-    Alert.alert('Updated', `Submission marked as ${status}.`);
-    load();
+    try {
+      await updateHiddenSpotSubmissionStatus(id, status);
+      Alert.alert('Updated', `Submission marked as ${status}.`);
+      load();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      Alert.alert('Update failed', `Could not update submission: ${message}`);
+    }
   };
 
   return (
