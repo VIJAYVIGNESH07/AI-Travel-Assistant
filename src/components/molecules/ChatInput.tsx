@@ -7,9 +7,10 @@ type Props = {
   value: string;
   onChangeText: (value: string) => void;
   onSend: () => void;
+  disabled?: boolean;
 };
 
-const ChatInput = ({ value, onChangeText, onSend }: Props) => {
+const ChatInput = ({ value, onChangeText, onSend, disabled = false }: Props) => {
   const theme = useTheme();
   return (
     <View style={[styles.container, { borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}
@@ -17,17 +18,27 @@ const ChatInput = ({ value, onChangeText, onSend }: Props) => {
       <TextInput
         value={value}
         onChangeText={onChangeText}
-        placeholder="Ask me anything"
+        placeholder="Ask me anything..."
         placeholderTextColor={theme.colors.slate500}
         style={[styles.input, { color: theme.colors.textPrimary }]}
+        editable={!disabled}
+        returnKeyType="send"
+        onSubmitEditing={onSend}
+        blurOnSubmit={false}
       />
       <Pressable style={[styles.iconButton, { backgroundColor: theme.colors.slate100 }]}
       >
         <Ionicons name="mic" size={18} color={theme.colors.slate700} />
       </Pressable>
-      <Pressable onPress={onSend} style={[styles.iconButton, { backgroundColor: theme.colors.primary }]}
+      <Pressable
+        onPress={onSend}
+        disabled={disabled || !value.trim()}
+        style={[
+          styles.iconButton,
+          { backgroundColor: disabled || !value.trim() ? theme.colors.slate100 : theme.colors.primary }
+        ]}
       >
-        <Ionicons name="send" size={16} color="#FFFFFF" />
+        <Ionicons name="send" size={16} color={disabled || !value.trim() ? theme.colors.slate500 : '#FFFFFF'} />
       </Pressable>
     </View>
   );
