@@ -39,6 +39,8 @@ export type ChatPlanOption = {
 export type ChatPlanResponse = {
   feasible: boolean;
   summary?: string;
+  origin?: string;
+  destination?: string;
   budget?: ChatBudget;
   plans?: ChatPlanOption[];
   alternatives?: string[];

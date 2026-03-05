@@ -8,7 +8,7 @@ let messages: ChatMessage[] = [
   {
     id: 'welcome',
     role: 'assistant',
-    text: 'Hi, I am WanderMate. Where would you like to go next?',
+    text: 'Hi! I am WanderMate, your AI travel assistant. Tell me where you want to go and I will plan your trip. You can also ask me anything about travel in India or around the world.',
     createdAt: Date.now()
   }
 ];
