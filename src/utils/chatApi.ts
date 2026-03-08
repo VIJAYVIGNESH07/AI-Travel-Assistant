@@ -13,7 +13,8 @@ const ALLOWED_TRANSPORT_DOMAINS = [
   'skyscanner.co.in',
   'google.com',
   'uber.com',
-  'olacabs.com'
+  'olacabs.com',
+  'booking.com'
 ];
 
 // ── Smart booking deep-link builder ─────────────────────────────────────────
@@ -96,6 +97,14 @@ export const generateBookingLinks = (
     });
   }
 
+  // Hotel booking (nearby stays at destination)
+  links.push({
+    provider: 'Booking.com',
+    type: 'Hotel',
+    url: `https://www.booking.com/searchresults.html?ss=${to}`,
+    note: 'Find nearby hotels and book your stay'
+  });
+
   return links;
 };
 
@@ -125,6 +134,7 @@ const SYSTEM_PROMPT = [
   'You are a natural conversational AI. Respond naturally to any message.',
   '- Greetings → greet back warmly, ask what travel they have in mind.',
   '- General travel questions → answer in plain conversational text.',
+  '- If user asks for hotel booking website/link, always include: https://www.booking.com/',
   '- Partial trip info → ask for the ONE most important missing detail.',
   '- Origin + destination both known → generate the JSON plan.',
   '',
@@ -178,6 +188,7 @@ const SYSTEM_PROMPT = [
   '  Google Flights: https://www.google.com/travel/flights',
   '  Uber: https://www.uber.com/',
   '  Ola: https://www.olacabs.com/',
+  '  Booking.com (Hotels): https://www.booking.com/',
   '',
   'JSON schema (output ONLY this — no surrounding text — when generating a plan):',
   '{',

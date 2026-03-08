@@ -6,16 +6,28 @@ import { useRoute } from '@react-navigation/native';
 import { useTheme } from '../theme/ThemeProvider';
 import { places } from '../data/mock';
 
+const PLACE_IMAGE_OVERRIDES: Record<string, number> = {
+  'Hawa Mahal': require('../../assets/hawa-mahal-travel-rajasthan.jpg'),
+  'Golden Temple': require('../../assets/Goldentemple.webp'),
+  'Mysore Palace': require('../../assets/Mysore-Palace.jpg'),
+  'Gateway of India': require('../../assets/Gateway-of-India.webp'),
+  'Virupaksha Temple': require('../../assets/Virupakshatemple.jpg'),
+  'Ellora Caves': require('../../assets/Elloracaves.jpg'),
+  Charminar: require('../../assets/Charminar.jpg'),
+  'Chittorgarh Fort': require('../../assets/chittorgarh.jpg')
+};
+
 const PlaceDetailsScreen = () => {
   const theme = useTheme();
   const route = useRoute<any>();
   const place = places.find((item) => item.id === route.params?.id) || places[0];
+  const placeImage = PLACE_IMAGE_OVERRIDES[place.name] || { uri: place.image };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
       <ScrollView>
-        <Image source={{ uri: place.image }} style={styles.image} />
+        <Image source={placeImage} style={styles.image} contentFit="cover" />
         <View style={styles.content}>
           <Text style={[styles.title, { color: theme.colors.textPrimary }]}>{place.name}</Text>
           <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>{place.location}</Text>

@@ -26,10 +26,6 @@ const ChatInput = ({ value, onChangeText, onSend, disabled = false }: Props) => 
         onSubmitEditing={onSend}
         blurOnSubmit={false}
       />
-      <Pressable style={[styles.iconButton, { backgroundColor: theme.colors.slate100 }]}
-      >
-        <Ionicons name="mic" size={18} color={theme.colors.slate700} />
-      </Pressable>
       <Pressable
         onPress={onSend}
         disabled={disabled || !value.trim()}
@@ -48,6 +44,8 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
+    width: '100%',
+    minHeight: 52,
     borderWidth: 1,
     borderRadius: 24,
     paddingHorizontal: 12,
@@ -56,7 +54,8 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 14,
-    marginRight: 8
+    paddingVertical: 6,
+    marginRight: 4
   },
   iconButton: {
     width: 34,

@@ -193,7 +193,7 @@ export const places = [
     description:
       'Charminar is a historic monument and symbol of Hyderabad, famous for its four minarets and Indo-Islamic architecture.',
     image:
-      'https://images.unsplash.com/photo-1589308078055-9182a6f7f0be?auto=format&fit=crop&w=1200&q=80'
+      'C:\Users\vijay\Desktop\AI Travel Assisstant\assets\Charminar.jpg'
   },
   {
     id: 'pl9',

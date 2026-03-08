@@ -12,7 +12,7 @@ import {
   Platform,
   ScrollView
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeProvider';
 import { chatSuggestions } from '../data/mock';
 import Chip from '../components/atoms/Chip';
@@ -26,6 +26,7 @@ const formatINR = (amount: number) => `\u20b9${amount.toLocaleString('en-IN')}`;
 
 const ChatScreen = () => {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>(getChatMessages());
   const [loading, setLoading] = useState(false);
@@ -54,6 +55,30 @@ const ChatScreen = () => {
     }
   };
 
+  const renderBubbleText = (text: string) => {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = text.split(urlRegex);
+
+    return (
+      <Text style={styles.bubbleText}>
+        {parts.map((part, index) => {
+          if (/^https?:\/\/[^\s]+$/i.test(part)) {
+            return (
+              <Text
+                key={`msg-link-${index}`}
+                onPress={() => openLink(part)}
+                style={styles.bubbleLink}
+              >
+                {part}
+              </Text>
+            );
+          }
+          return <Text key={`msg-text-${index}`}>{part}</Text>;
+        })}
+      </Text>
+    );
+  };
+
   /* ── Send any message directly to the LLM ── */
   const handleSend = async (overrideMessage?: string) => {
     const value = (overrideMessage ?? message).trim();
@@ -61,6 +86,16 @@ const ChatScreen = () => {
 
     addUserMessage(value);
     setMessage('');
+
+    const isHotelBookingQuery =
+      /\bhotel(s)?\b/i.test(value) &&
+      /\b(book|booking|website|site|link)\b/i.test(value);
+
+    if (isHotelBookingQuery) {
+      addAssistantMessage('You can book nearby hotels on Booking.com: https://www.booking.com/');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -90,6 +125,7 @@ const ChatScreen = () => {
       'Google Flights': { bg: '#FFF9C4', border: '#FFF176', badge: '#F57F17' },
       'Air India': { bg: '#FCE4EC', border: '#F48FB1', badge: '#AD1457' },
       'Redbus': { bg: '#FBE9E7', border: '#FFAB91', badge: '#BF360C' },
+      'Booking.com': { bg: '#E8EAF6', border: '#9FA8DA', badge: '#283593' }
     };
 
     return (
@@ -256,7 +292,7 @@ const ChatScreen = () => {
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 24}
       >
         {/* Header */}
         <View style={styles.header}>
@@ -270,6 +306,7 @@ const ChatScreen = () => {
           data={messages}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.messages}
+          keyboardShouldPersistTaps="handled"
           onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
           renderItem={({ item }) => (
             <View style={styles.messageRow}>
@@ -281,7 +318,7 @@ const ChatScreen = () => {
                     : { alignSelf: 'flex-start', backgroundColor: '#0EA5E9' }
                 ]}
               >
-                <Text style={styles.bubbleText}>{item.text}</Text>
+                {renderBubbleText(item.text)}
               </View>
               {item.role === 'assistant' && item.data ? renderPlanData(item.data) : null}
             </View>
@@ -289,7 +326,7 @@ const ChatScreen = () => {
         />
 
         {/* Suggestion chips */}
-        <View style={styles.chipsRow}>
+        <View style={[styles.chipsRow, { borderTopColor: theme.colors.border, backgroundColor: theme.colors.background }]}>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -302,7 +339,16 @@ const ChatScreen = () => {
         </View>
 
         {/* Input */}
-        <View style={styles.inputWrap}>
+        <View
+          style={[
+            styles.inputWrap,
+            {
+              borderTopColor: theme.colors.border,
+              backgroundColor: theme.colors.background,
+              paddingBottom: Math.max(insets.bottom, 8)
+            }
+          ]}
+        >
           <ChatInput
             value={message}
             onChangeText={setMessage}
@@ -332,13 +378,21 @@ const styles = StyleSheet.create({
     marginBottom: 2
   },
   bubbleText: { fontSize: 14, lineHeight: 21, color: '#FFFFFF' },
+  bubbleLink: {
+    textDecorationLine: 'underline',
+    color: '#FFFFFF',
+    fontWeight: '700'
+  },
   chipsRow: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#E5E7EB',
     paddingVertical: 8
   },
   chipsContent: { paddingHorizontal: 16, gap: 8 },
-  inputWrap: { paddingHorizontal: 16, paddingBottom: 8 },
+  inputWrap: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth
+  },
   loader: { marginTop: 6 },
   planWrap: { paddingHorizontal: 4, paddingBottom: 10 },
   budgetCard: { borderWidth: 1, borderRadius: 12, padding: 14, marginBottom: 10 },

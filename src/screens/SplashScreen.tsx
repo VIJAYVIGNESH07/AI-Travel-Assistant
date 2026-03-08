@@ -61,18 +61,37 @@ const SplashScreen = () => {
 
   return (
     <LinearGradient colors={theme.colors.gradients.ocean} style={styles.container}>
-      <Animated.View style={[styles.logoWrap, logoStyle]}>
-        <Image source={require('../../assets/wandermate-logo.png')} style={styles.logoImage} contentFit="contain" />
-      </Animated.View>
-      <Text style={styles.brand}>WanderMate</Text>
-      <Text style={styles.tagline}>Your Journey Begins</Text>
-      <ActivityIndicator color="#FFFFFF" style={styles.loader} />
+      <Image
+        source={require('../../assets/splash-background.png')}
+        style={styles.backgroundImage}
+        contentFit="cover"
+      />
+      <View style={styles.backgroundOverlay} />
+
+      <View style={styles.content}>
+        <Animated.View style={[styles.logoWrap, logoStyle]}>
+          <Image source={require('../../assets/wandermate-logo.png')} style={styles.logoImage} contentFit="contain" />
+        </Animated.View>
+        <Text style={styles.brand}>WanderMate</Text>
+        <Text style={styles.tagline}>Your Journey Begins</Text>
+        <ActivityIndicator color="#FFFFFF" style={styles.loader} />
+      </View>
     </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1
+  },
+  backgroundImage: {
+    ...StyleSheet.absoluteFillObject
+  },
+  backgroundOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.36)'
+  },
+  content: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center'

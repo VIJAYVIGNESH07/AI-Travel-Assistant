@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, StyleSheet, Text, Alert, Linking, ScrollView, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../theme/ThemeProvider';
 import { exploreFilters, places } from '../data/mock';
@@ -9,42 +9,22 @@ import SearchBar from '../components/molecules/SearchBar';
 import Chip from '../components/atoms/Chip';
 import MapViewCompat from '../components/molecules/MapViewCompat';
 import type { RootStackParamList } from '../navigation/types';
-import { getApprovedHiddenSpotPlaces } from '../utils/hiddenSpotStorage';
-import { useAppSelector } from '../redux/hooks';
 
 const ExploreScreen = () => {
   const theme = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const user = useAppSelector((state) => state.auth.user);
   const [query, setQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
-  const [allPlaces, setAllPlaces] = useState(places);
-  const [selectedPlaceId, setSelectedPlaceId] = useState(allPlaces[0]?.id || '');
-
-  useFocusEffect(
-    React.useCallback(() => {
-      const load = async () => {
-        try {
-          const approvedHiddenSpots = await getApprovedHiddenSpotPlaces(user?.handle);
-          setAllPlaces([...approvedHiddenSpots, ...places]);
-        } catch (error) {
-          console.warn('[Explore] Failed to load hidden spots:', error);
-          setAllPlaces([...places]);
-        }
-      };
-
-      load();
-    }, [user?.handle])
-  );
+  const [selectedPlaceId, setSelectedPlaceId] = useState(places[0]?.id || '');
 
   const filteredPlaces = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    let filtered = [...allPlaces];
+    let filtered = [...places];
 
     if (activeFilter === 'Recent') {
-      filtered = [...allPlaces].slice(0, 5);
+      filtered = [...places].slice(0, 5);
     } else if (activeFilter === 'New') {
-      filtered = [...allPlaces].slice(-5).reverse();
+      filtered = [...places].slice(-5).reverse();
     }
 
     if (!normalizedQuery) {
@@ -58,7 +38,7 @@ const ExploreScreen = () => {
         item.category.toLowerCase().includes(normalizedQuery) ||
         (item.description || '').toLowerCase().includes(normalizedQuery)
     );
-  }, [activeFilter, query, allPlaces]);
+  }, [activeFilter, query]);
 
   useEffect(() => {
     if (filteredPlaces.length === 0) {
@@ -73,7 +53,7 @@ const ExploreScreen = () => {
   }, [filteredPlaces, selectedPlaceId]);
 
   const selectedPlace = filteredPlaces.find((item) => item.id === selectedPlaceId) || filteredPlaces[0] || null;
-  const mapCenter = selectedPlace || filteredPlaces[0] || allPlaces[0] || places[0];
+  const mapCenter = selectedPlace || filteredPlaces[0] || places[0];
 
   const handleOpenVR = async () => {
     if (!selectedPlace?.vrLink) {
