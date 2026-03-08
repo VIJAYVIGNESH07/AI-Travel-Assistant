@@ -7,6 +7,8 @@ export type StoredUser = {
   password: string;
   location: string;
   avatar: string;
+  bio: string;
+  backgroundImage: string;
 };
 
 type UserDatabase = Record<string, StoredUser>;
@@ -59,8 +61,12 @@ export const toUserProfile = (user: StoredUser): UserProfile => {
   return {
     name: user.name,
     handle: buildHandle(user.name),
-    location: user.location,
-    avatar: user.avatar
+    location: user.location || 'Unknown location',
+    avatar: user.avatar || '',
+    bio: user.bio || 'Travel lover exploring new places.',
+    backgroundImage:
+      user.backgroundImage ||
+      'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=1200&q=80'
   };
 };
 

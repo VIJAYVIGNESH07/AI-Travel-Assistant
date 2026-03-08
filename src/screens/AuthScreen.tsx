@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, Switch, ScrollView, Alert } from 'react-native';
 import { TextInput } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -13,9 +15,6 @@ import { signIn } from '../redux/slices/authSlice';
 import type { RootStackParamList } from '../navigation/types';
 import { getUserByEmail, saveUser, toUserProfile } from '../utils/userDatabase';
 
-const defaultAvatar =
-  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80';
-
 const AuthScreen = () => {
   const theme = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -25,9 +24,49 @@ const AuthScreen = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [location, setLocation] = useState('');
+  const [bio, setBio] = useState('');
+  const [avatarUri, setAvatarUri] = useState('');
+  const [avatarBase64, setAvatarBase64] = useState('');
+  const [backgroundUri, setBackgroundUri] = useState('');
+  const [backgroundBase64, setBackgroundBase64] = useState('');
   const [remember, setRemember] = useState(true);
 
   const isLogin = mode === 'Login';
+
+  const pickProfileImage = async (type: 'avatar' | 'background') => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission required', 'Please allow gallery access to choose images.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.75,
+      base64: true
+    });
+
+    if (result.canceled) {
+      return;
+    }
+
+    const asset = result.assets[0];
+    if (!asset.base64) {
+      Alert.alert('Upload failed', 'Unable to read image data. Try another image.');
+      return;
+    }
+
+    if (type === 'avatar') {
+      setAvatarUri(asset.uri);
+      setAvatarBase64(asset.base64);
+      return;
+    }
+
+    setBackgroundUri(asset.uri);
+    setBackgroundBase64(asset.base64);
+  };
 
   const handleContinue = async () => {
     const normalizedEmail = email.trim().toLowerCase();
@@ -51,8 +90,13 @@ const AuthScreen = () => {
       return;
     }
 
-    if (!trimmedName || !confirm) {
-      Alert.alert('Missing details', 'Enter user name, email, password and confirm password.');
+    if (!trimmedName || !confirm || !location.trim() || !bio.trim()) {
+      Alert.alert('Missing details', 'Enter name, location, bio, email, password and confirm password.');
+      return;
+    }
+
+    if (!avatarBase64 || !backgroundBase64) {
+      Alert.alert('Missing images', 'Please choose a profile photo and a background image.');
       return;
     }
 
@@ -71,14 +115,22 @@ const AuthScreen = () => {
       name: trimmedName,
       email: normalizedEmail,
       password,
-      location: 'New York, USA',
-      avatar: defaultAvatar
+      location: location.trim(),
+      avatar: `data:image/jpeg;base64,${avatarBase64}`,
+      bio: bio.trim(),
+      backgroundImage: `data:image/jpeg;base64,${backgroundBase64}`
     });
 
     Alert.alert('Sign up successful', 'Account created. Please log in with your email and password.');
     setMode('Login');
     setPassword('');
     setConfirm('');
+    setLocation('');
+    setBio('');
+    setAvatarUri('');
+    setAvatarBase64('');
+    setBackgroundUri('');
+    setBackgroundBase64('');
   };
 
   return (
@@ -100,6 +152,56 @@ const AuthScreen = () => {
             value={name}
             onChangeText={setName}
             style={styles.input}
+          />
+        )}
+
+        {!isLogin && (
+          <View style={styles.mediaInputsWrap}>
+            <Text style={[styles.mediaTitle, { color: theme.colors.textPrimary }]}>Profile Photo</Text>
+            <Text
+              style={[styles.mediaPicker, { borderColor: theme.colors.border, color: theme.colors.textSecondary }]}
+              onPress={() => {
+                pickProfileImage('avatar');
+              }}
+            >
+              {avatarUri ? 'Change Profile Photo' : 'Choose Profile Photo'}
+            </Text>
+            {avatarUri ? <Image source={{ uri: avatarUri }} style={styles.avatarPreview} contentFit="cover" /> : null}
+
+            <Text style={[styles.mediaTitle, { color: theme.colors.textPrimary }]}>Background Image</Text>
+            <Text
+              style={[styles.mediaPicker, { borderColor: theme.colors.border, color: theme.colors.textSecondary }]}
+              onPress={() => {
+                pickProfileImage('background');
+              }}
+            >
+              {backgroundUri ? 'Change Background Image' : 'Choose Background Image'}
+            </Text>
+            {backgroundUri ? (
+              <Image source={{ uri: backgroundUri }} style={styles.backgroundPreview} contentFit="cover" />
+            ) : null}
+          </View>
+        )}
+
+        {!isLogin && (
+          <TextInput
+            mode="outlined"
+            label="Location"
+            value={location}
+            onChangeText={setLocation}
+            style={styles.input}
+          />
+        )}
+
+        {!isLogin && (
+          <TextInput
+            mode="outlined"
+            label="Bio"
+            value={bio}
+            onChangeText={setBio}
+            style={styles.input}
+            multiline
+            numberOfLines={3}
           />
         )}
 
@@ -174,6 +276,32 @@ const styles = StyleSheet.create({
   },
   input: {
     marginTop: 12
+  },
+  mediaInputsWrap: {
+    marginTop: 12,
+    gap: 8
+  },
+  mediaTitle: {
+    fontSize: 13,
+    fontWeight: '600'
+  },
+  mediaPicker: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    fontSize: 13,
+    overflow: 'hidden'
+  },
+  avatarPreview: {
+    width: 72,
+    height: 72,
+    borderRadius: 36
+  },
+  backgroundPreview: {
+    width: '100%',
+    height: 120,
+    borderRadius: 12
   },
   row: {
     flexDirection: 'row',

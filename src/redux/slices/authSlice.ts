@@ -5,6 +5,8 @@ export type UserProfile = {
   handle: string;
   location: string;
   avatar: string;
+  bio: string;
+  backgroundImage: string;
 };
 
 type AuthState = {

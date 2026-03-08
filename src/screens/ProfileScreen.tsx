@@ -43,7 +43,10 @@ const ProfileScreen = () => {
     handle: '@sarahwanders',
     location: 'New York, USA',
     avatar:
-      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80'
+      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80',
+    bio: 'Travel lover exploring hidden gems around the world.',
+    backgroundImage:
+      'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=1200&q=80'
   };
 
   const loadProfilePosts = useCallback(async () => {
@@ -105,7 +108,7 @@ const ProfileScreen = () => {
     >
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.cover}>
-          <Image source={{ uri: posts[0].image }} style={styles.coverImage} />
+          <Image source={{ uri: profile.backgroundImage || posts[0].image }} style={styles.coverImage} />
           <View style={styles.coverOverlay} />
           <Ionicons
             name="settings-outline"
@@ -124,6 +127,7 @@ const ProfileScreen = () => {
           <Text style={[styles.handle, { color: theme.colors.textSecondary }]}>{profile.handle}</Text>
           <Text style={[styles.location, { color: theme.colors.textSecondary }]}>{profile.location}</Text>
         </View>
+        <Text style={[styles.bio, { color: theme.colors.textSecondary }]}>{profile.bio}</Text>
 
         <View style={styles.tabs}>
           <SegmentedControl options={['Posts', 'Hidden Spots']} value={tab} onChange={setTab} />
