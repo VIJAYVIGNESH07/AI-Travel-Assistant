@@ -63,7 +63,7 @@ EXPO_PUBLIC_SENDGRID_API_KEY=SG.5thIaHgoRT2...
 
 In Expo, **every `EXPO_PUBLIC_*` variable is bundled into the JavaScript** and shipped to the client. This means:
 - The SendGrid API key is visible to anyone who decompiles the app or inspects the JS bundle
-- Anyone can use it to send emails as `2k22aids60@kiot.ac.in`
+- Anyone can use it to send emails as `2k22aids53@kiot.ac.in`
 - SendGrid will likely flag/ban the key for abuse
 
 > [!WARNING]

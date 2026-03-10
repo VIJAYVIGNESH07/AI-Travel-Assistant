@@ -1,8 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config/supabase';
 
+const FALLBACK_SUPABASE_URL = 'https://placeholder.supabase.co';
+const FALLBACK_SUPABASE_ANON_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+
+const resolvedSupabaseUrl = SUPABASE_URL || FALLBACK_SUPABASE_URL;
+const resolvedSupabaseAnonKey = SUPABASE_ANON_KEY || FALLBACK_SUPABASE_ANON_KEY;
+
 // Configure Supabase client with flexible SSL handling for Expo environments
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+export const supabase = createClient(resolvedSupabaseUrl, resolvedSupabaseAnonKey, {
   auth: {
     persistSession: false,
     autoRefreshToken: false,

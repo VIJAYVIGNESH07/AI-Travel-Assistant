@@ -60,13 +60,17 @@ const ExploreScreen = () => {
       return;
     }
 
-    const canOpen = await Linking.canOpenURL(selectedPlace.vrLink);
-    if (!canOpen) {
-      Alert.alert('Unable to open', 'VR link is not available on this device.');
-      return;
-    }
+    try {
+      const canOpen = await Linking.canOpenURL(selectedPlace.vrLink);
+      if (!canOpen) {
+        Alert.alert('Unable to open', 'VR link is not available on this device.');
+        return;
+      }
 
-    await Linking.openURL(selectedPlace.vrLink);
+      await Linking.openURL(selectedPlace.vrLink);
+    } catch {
+      Alert.alert('Link error', 'Could not open this VR link on your device.');
+    }
   };
 
   return (
