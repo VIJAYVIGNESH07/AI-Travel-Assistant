@@ -132,6 +132,9 @@ const SYSTEM_PROMPT = [
   '',
   '== HOW TO RESPOND ==',
   'You are a natural conversational AI. Respond naturally to any message.',
+  'Keep replies short and clear by default.',
+  'For normal chat responses, use maximum 2 short sentences.',
+  'Target under 45 words unless the user explicitly asks for detailed explanation.',
   '- Greetings → greet back warmly, ask what travel they have in mind.',
   '- General travel questions → answer in plain conversational text.',
   '- If user asks for hotel booking website/link, always include: https://www.booking.com/',
@@ -283,6 +286,22 @@ const normalizeResponse = (data: Record<string, unknown>) => {
   }
 };
 
+const toBriefReply = (text: string) => {
+  const normalized = text.replace(/\s+/g, ' ').trim();
+  if (!normalized) {
+    return 'I am here to help with your travel plans.';
+  }
+
+  const parts = normalized
+    .split(/(?<=[.!?])\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  const twoSentences = parts.slice(0, 2).join(' ');
+  const base = twoSentences || normalized;
+  return base.length > 220 ? `${base.slice(0, 217).trimEnd()}...` : base;
+};
+
 export const sendChatMessage = async (payload: ChatRequest): Promise<ChatApiResponse> => {
   if (!GROQ_API_KEY) {
     throw new Error('Missing EXPO_PUBLIC_GROQ_API_KEY.');
@@ -343,9 +362,9 @@ export const sendChatMessage = async (payload: ChatRequest): Promise<ChatApiResp
   // - If nothing was parsed → rawContent is plain conversational text, show as-is
   const reply = parsed
     ? (typeof parsed.summary === 'string' && parsed.summary.trim()
-      ? parsed.summary
+      ? toBriefReply(parsed.summary)
       : 'Here are your travel plan options.')
-    : rawContent || 'I am here to help with your travel plans.';
+    : toBriefReply(rawContent);
 
   return {
     reply,

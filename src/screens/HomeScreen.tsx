@@ -1,15 +1,26 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Pressable, Modal } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Pressable, Modal, Share, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
+import { TextInput } from 'react-native-paper';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../theme/ThemeProvider';
+import { posts as staticPosts, stories as staticStories } from '../data/mock';
 import StoryAvatar from '../components/atoms/StoryAvatar';
 import PostCard from '../components/organisms/PostCard';
 import type { RootStackParamList } from '../navigation/types';
-import { getStoredPosts, getStoredStories, toImageDataUri, updateStoredPostLikes } from '../utils/socialStorage';
+import {
+  getStoredPosts,
+  getStoredStories,
+  toImageDataUri,
+  getPostInteraction,
+  togglePostLike,
+  addPostComment,
+  incrementPostShare,
+  StoredComment
+} from '../utils/socialStorage';
 import { useAppSelector } from '../redux/hooks';
 
 type HomeStory = {
@@ -29,6 +40,8 @@ type HomePost = {
   caption: string;
   likes: number;
   comments: number;
+  shares: number;
+  commentsList: StoredComment[];
   isStored: boolean;
 };
 
@@ -44,6 +57,9 @@ const HomeScreen = () => {
   const [storyViewerVisible, setStoryViewerVisible] = useState(false);
   const [selectedPost, setSelectedPost] = useState<HomePost | null>(null);
   const [postViewerVisible, setPostViewerVisible] = useState(false);
+  const [commentModalVisible, setCommentModalVisible] = useState(false);
+  const [commentText, setCommentText] = useState('');
+  const [activeCommentPostId, setActiveCommentPostId] = useState('');
   const [likedPostIds, setLikedPostIds] = useState<string[]>([]);
 
   const loadSocialData = useCallback(async () => {
@@ -61,6 +77,14 @@ const HomeScreen = () => {
       isAdd: story.isAdd
     }));
 
+    const baseStaticStories = staticStories.slice(1).map((story) => ({
+      id: `static-${story.id}`,
+      name: story.name,
+      image: story.image,
+      seen: story.seen,
+      isAdd: false
+    }));
+
     const uploadedPosts = storedPosts.map((post) => ({
       id: post.id,
       user: post.user,
@@ -70,7 +94,46 @@ const HomeScreen = () => {
       caption: post.caption,
       likes: post.likes,
       comments: post.comments,
+      shares: post.shares || 0,
+      commentsList: [],
       isStored: true
+    }));
+
+    const baseFeedPosts: HomePost[] = staticPosts.map((post) => ({
+      id: post.id,
+      user: post.user,
+      handle: post.handle,
+      location: post.location,
+      image: post.image,
+      caption: post.caption,
+      likes: post.likes,
+      comments: post.comments,
+      shares: post.shares || 0,
+      commentsList: [],
+      isStored: false
+    }));
+
+    const mergedPosts = [...uploadedPosts, ...baseFeedPosts];
+    const interactionStates = await Promise.all(
+      mergedPosts.map((post) =>
+        getPostInteraction(post.id, {
+          likes: post.likes,
+          comments: post.comments,
+          shares: post.shares
+        })
+      )
+    );
+
+    const nextLiked = interactionStates
+      .map((state, index) => (state.likedByMe ? mergedPosts[index].id : ''))
+      .filter(Boolean);
+
+    const hydratedPosts = mergedPosts.map((post, index) => ({
+      ...post,
+      likes: interactionStates[index].likes,
+      comments: interactionStates[index].comments,
+      shares: interactionStates[index].shares,
+      commentsList: interactionStates[index].commentsList
     }));
 
     if (ownStories.length > 0) {
@@ -85,16 +148,28 @@ const HomeScreen = () => {
           seen: false,
           isAdd: false
         },
+        ...baseStaticStories,
         ...uploadedStories
       ]);
     } else {
       setOwnStoryId('');
       setOwnStoryUris([]);
       setCurrentStoryIndex(0);
-      setHomeStories(uploadedStories);
+      setHomeStories([
+        {
+          id: 'static-add-story',
+          name: 'Your Story',
+          image: staticStories[0]?.image || '',
+          seen: false,
+          isAdd: true
+        },
+        ...baseStaticStories,
+        ...uploadedStories
+      ]);
     }
 
-    setHomePosts(uploadedPosts);
+    setLikedPostIds(nextLiked as string[]);
+    setHomePosts(hydratedPosts);
   }, [user?.name]);
 
   useFocusEffect(
@@ -128,20 +203,17 @@ const HomeScreen = () => {
   };
 
   const handleLikePost = async (post: HomePost) => {
-    if (!post.isStored) {
-      return;
-    }
-
-    const alreadyLiked = likedPostIds.includes(post.id);
-    const nextLikes = alreadyLiked ? Math.max(0, post.likes - 1) : post.likes + 1;
-
-    await updateStoredPostLikes(post.id, nextLikes);
+    const next = await togglePostLike(post.id, {
+      likes: post.likes,
+      comments: post.comments,
+      shares: post.shares
+    });
 
     setLikedPostIds((current) => {
-      if (alreadyLiked) {
-        return current.filter((id) => id !== post.id);
+      if (next.likedByMe) {
+        return current.includes(post.id) ? current : [...current, post.id];
       }
-      return [...current, post.id];
+      return current.filter((id) => id !== post.id);
     });
 
     setHomePosts((current) =>
@@ -152,15 +224,91 @@ const HomeScreen = () => {
 
         return {
           ...item,
-          likes: nextLikes
+          likes: next.likes
         };
       })
     );
 
     if (selectedPost?.id === post.id) {
-      setSelectedPost((current) => (current ? { ...current, likes: nextLikes } : current));
+      setSelectedPost((current) => (current ? { ...current, likes: next.likes } : current));
     }
   };
+
+  const handleOpenComments = (post: HomePost) => {
+    setActiveCommentPostId(post.id);
+    setCommentText('');
+    setCommentModalVisible(true);
+  };
+
+  const handleSubmitComment = async () => {
+    const text = commentText.trim();
+    if (!text || !activeCommentPostId) {
+      return;
+    }
+
+    const activePost = homePosts.find((post) => post.id === activeCommentPostId);
+    if (!activePost) {
+      return;
+    }
+
+    const next = await addPostComment(
+      activeCommentPostId,
+      text,
+      user?.name || 'Traveler',
+      {
+        likes: activePost.likes,
+        comments: activePost.comments,
+        shares: activePost.shares
+      }
+    );
+
+    setHomePosts((current) =>
+      current.map((item) => {
+        if (item.id !== activeCommentPostId) {
+          return item;
+        }
+
+        return {
+          ...item,
+          comments: next.comments,
+          commentsList: next.commentsList
+        };
+      })
+    );
+
+    setCommentText('');
+  };
+
+  const handleSharePost = async (post: HomePost) => {
+    try {
+      await Share.share({
+        message: `${post.user} shared this travel moment: ${post.caption}`
+      });
+
+      const next = await incrementPostShare(post.id, {
+        likes: post.likes,
+        comments: post.comments,
+        shares: post.shares
+      });
+
+      setHomePosts((current) =>
+        current.map((item) => {
+          if (item.id !== post.id) {
+            return item;
+          }
+
+          return {
+            ...item,
+            shares: next.shares
+          };
+        })
+      );
+    } catch {
+      Alert.alert('Share failed', 'Unable to share this post right now.');
+    }
+  };
+
+  const activeCommentPost = homePosts.find((post) => post.id === activeCommentPostId) || null;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}
@@ -210,9 +358,14 @@ const HomeScreen = () => {
             />
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Latest Stories</Text>
-              <Pressable onPress={() => navigation.navigate('Community')}>
-                <Text style={[styles.link, { color: theme.colors.primary }]}>Communities</Text>
-              </Pressable>
+              <View style={styles.headerLinks}>
+                <Pressable onPress={() => navigation.navigate('HiddenSpotList')}>
+                  <Text style={[styles.link, { color: theme.colors.primary }]}>Hidden Spots</Text>
+                </Pressable>
+                <Pressable onPress={() => navigation.navigate('Community')}>
+                  <Text style={[styles.link, { color: theme.colors.primary }]}>Communities</Text>
+                </Pressable>
+              </View>
             </View>
           </View>
         }
@@ -222,6 +375,8 @@ const HomeScreen = () => {
             liked={likedPostIds.includes(item.id)}
             onOpenPress={() => handleOpenPost(item)}
             onLikePress={() => handleLikePost(item)}
+            onCommentPress={() => handleOpenComments(item)}
+            onSharePress={() => handleSharePost(item)}
           />
         )}
         contentContainerStyle={styles.feed}
@@ -251,6 +406,42 @@ const HomeScreen = () => {
           <Pressable style={styles.backButton} onPress={() => setPostViewerVisible(false)}>
             <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
           </Pressable>
+        </View>
+      </Modal>
+
+      <Modal visible={commentModalVisible} transparent animationType="slide">
+        <View style={styles.commentModalBackdrop}>
+          <View style={[styles.commentSheet, { backgroundColor: theme.colors.surface }]}> 
+            <Text style={[styles.commentTitle, { color: theme.colors.textPrimary }]}>Comments</Text>
+            <FlatList
+              data={activeCommentPost?.commentsList || []}
+              keyExtractor={(item) => item.id}
+              ListEmptyComponent={
+                <Text style={[styles.emptyComments, { color: theme.colors.textSecondary }]}>No comments yet.</Text>
+              }
+              renderItem={({ item }) => (
+                <View style={styles.commentRow}>
+                  <Text style={[styles.commentUser, { color: theme.colors.textPrimary }]}>{item.user}</Text>
+                  <Text style={[styles.commentText, { color: theme.colors.textSecondary }]}>{item.text}</Text>
+                </View>
+              )}
+              style={styles.commentsList}
+            />
+            <TextInput
+              mode="outlined"
+              label="Add a comment"
+              value={commentText}
+              onChangeText={setCommentText}
+            />
+            <View style={styles.commentActions}>
+              <Pressable onPress={() => setCommentModalVisible(false)}>
+                <Text style={[styles.commentActionText, { color: theme.colors.textSecondary }]}>Close</Text>
+              </Pressable>
+              <Pressable onPress={handleSubmitComment}>
+                <Text style={[styles.commentActionText, { color: theme.colors.primary }]}>Post</Text>
+              </Pressable>
+            </View>
+          </View>
         </View>
       </Modal>
     </SafeAreaView>
@@ -285,8 +476,13 @@ const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 20,
     paddingBottom: 12
+  },
+  headerLinks: {
+    flexDirection: 'row',
+    gap: 12
   },
   sectionTitle: {
     fontSize: 16,
@@ -326,6 +522,50 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.45)',
     alignItems: 'center',
     justifyContent: 'center'
+  },
+  commentModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end'
+  },
+  commentSheet: {
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    padding: 16,
+    maxHeight: '65%'
+  },
+  commentTitle: {
+    fontSize: 16,
+    fontWeight: '700'
+  },
+  commentsList: {
+    marginVertical: 10,
+    maxHeight: 220
+  },
+  emptyComments: {
+    paddingVertical: 10,
+    fontSize: 13
+  },
+  commentRow: {
+    marginBottom: 10
+  },
+  commentUser: {
+    fontSize: 12,
+    fontWeight: '700'
+  },
+  commentText: {
+    marginTop: 2,
+    fontSize: 13
+  },
+  commentActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10
+  },
+  commentActionText: {
+    fontSize: 14,
+    fontWeight: '700'
   }
 });
 

@@ -59,7 +59,8 @@ export const posts = [
       'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1600&q=80',
     caption: 'Watching the sunset over the caldera with friends.',
     likes: 234,
-    comments: 45
+    comments: 45,
+    shares: 12
   },
   {
     id: 'p2',
@@ -70,7 +71,47 @@ export const posts = [
       'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1600&q=80',
     caption: 'Quiet morning walk near the bamboo grove.',
     likes: 512,
-    comments: 68
+    comments: 68,
+    shares: 27
+  }
+];
+
+export const hiddenSpotPublicList = [
+  {
+    id: 'hs-public-1',
+    name: 'Misty Cliff Point',
+    locationLabel: 'Kodaikanal, Tamil Nadu',
+    category: 'Nature',
+    description: 'Quiet sunrise viewpoint with pine forest trail and low crowd in mornings.',
+    appliedBy: 'Harish Kumar',
+    appliedByHandle: '@harishtrails',
+    status: 'Approved',
+    image:
+      'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1200&q=80'
+  },
+  {
+    id: 'hs-public-2',
+    name: 'Old Fort Stepwell',
+    locationLabel: 'Bundi, Rajasthan',
+    category: 'Heritage',
+    description: 'Historic stepwell beside an old fort lane, best visited at golden hour.',
+    appliedBy: 'Meera Sharma',
+    appliedByHandle: '@meeraroams',
+    status: 'Approved',
+    image:
+      'https://images.unsplash.com/photo-1548013146-72479768bada?auto=format&fit=crop&w=1200&q=80'
+  },
+  {
+    id: 'hs-public-3',
+    name: 'Backwater Jetty Walk',
+    locationLabel: 'Alappuzha, Kerala',
+    category: 'Waterfront',
+    description: 'Local jetty boardwalk with canoe rides and authentic evening food stalls.',
+    appliedBy: 'Rafiq Ali',
+    appliedByHandle: '@rafiqroutes',
+    status: 'Approved',
+    image:
+      'https://images.unsplash.com/photo-1516426122078-c23e76319801?auto=format&fit=crop&w=1200&q=80'
   }
 ];
 

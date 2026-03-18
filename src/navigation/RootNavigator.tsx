@@ -7,6 +7,7 @@ import MainTabs from './MainTabs';
 import AddModal from '../screens/AddModal';
 import CommunityScreen from '../screens/CommunityScreen';
 import HiddenSpotScreen from '../screens/HiddenSpotScreen';
+import HiddenSpotListScreen from '../screens/HiddenSpotListScreen';
 import LocalGuidesScreen from '../screens/LocalGuidesScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import TripPlannerScreen from '../screens/TripPlannerScreen';
@@ -32,6 +33,7 @@ const RootNavigator = () => {
       />
       <Stack.Screen name="Community" component={CommunityScreen} options={{ headerShown: true, title: 'Communities' }} />
       <Stack.Screen name="HiddenSpot" component={HiddenSpotScreen} options={{ headerShown: true, title: 'Add Hidden Spot' }} />
+      <Stack.Screen name="HiddenSpotList" component={HiddenSpotListScreen} options={{ headerShown: true, title: 'Hidden Spots' }} />
       <Stack.Screen name="LocalGuides" component={LocalGuidesScreen} options={{ headerShown: true, title: 'Local Guides' }} />
       <Stack.Screen name="Settings" component={SettingsScreen} options={{ headerShown: true, title: 'Settings' }} />
       <Stack.Screen name="TripPlanner" component={TripPlannerScreen} options={{ headerShown: true, title: 'Plan Trip' }} />

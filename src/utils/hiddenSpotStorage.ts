@@ -37,6 +37,19 @@ export type HiddenSpotProfileSpot = {
   submittedAt: number;
 };
 
+export type HiddenSpotPublicItem = {
+  id: string;
+  name: string;
+  locationLabel: string;
+  category: string;
+  description: string;
+  appliedBy: string;
+  appliedByHandle: string;
+  status: HiddenSpotSubmissionStatus;
+  image: string;
+  submittedAt: number;
+};
+
 type ExplorePlace = {
   id: string;
   name: string;
@@ -338,6 +351,26 @@ export const getApprovedHiddenSpotsForProfile = async (
       locationLabel: item.locationLabel,
       category: item.category || 'Hidden Spot',
       description: item.description,
+      image: item.imageBase64List[0] ? toImageDataUri(item.imageBase64List[0]) : '',
+      submittedAt: item.submittedAt
+    }));
+};
+
+export const getApprovedHiddenSpotPublicItems = async (): Promise<HiddenSpotPublicItem[]> => {
+  const submissions = await getHiddenSpotSubmissions();
+
+  return submissions
+    .filter((item) => item.verify && item.status === 'approved')
+    .sort((a, b) => b.submittedAt - a.submittedAt)
+    .map((item) => ({
+      id: item.id,
+      name: item.name,
+      locationLabel: item.locationLabel,
+      category: item.category || 'Hidden Spot',
+      description: item.description,
+      appliedBy: item.submittedBy || 'Traveler',
+      appliedByHandle: item.submittedByHandle || '@traveler',
+      status: item.status,
       image: item.imageBase64List[0] ? toImageDataUri(item.imageBase64List[0]) : '',
       submittedAt: item.submittedAt
     }));

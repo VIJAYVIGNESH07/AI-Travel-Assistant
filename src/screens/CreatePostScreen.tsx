@@ -28,7 +28,7 @@ const CreatePostScreen = () => {
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      allowsEditing: true,
+      allowsEditing: false,
       quality: 0.8,
       base64: true
     });
@@ -78,7 +78,7 @@ const CreatePostScreen = () => {
           {imageUri ? (
             <Image source={{ uri: imageUri }} style={styles.previewImage} />
           ) : (
-            <Text style={{ color: theme.colors.textSecondary }}>Add photo or video</Text>
+            <Text style={{ color: theme.colors.textSecondary }}>Select post image</Text>
           )}
         </Pressable>
         <TextInput
@@ -97,7 +97,7 @@ const CreatePostScreen = () => {
           multiline
           numberOfLines={4}
         />
-        <GradientButton title="Publish" onPress={handlePublish} />
+        <GradientButton title="Publish Post" onPress={handlePublish} />
       </View>
     </SafeAreaView>
   );

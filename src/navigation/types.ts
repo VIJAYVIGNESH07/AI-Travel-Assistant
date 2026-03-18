@@ -6,6 +6,7 @@ export type RootStackParamList = {
   AddModal: undefined;
   Community: undefined;
   HiddenSpot: undefined;
+  HiddenSpotList: undefined;
   LocalGuides: undefined;
   Settings: undefined;
   TripPlanner: undefined;

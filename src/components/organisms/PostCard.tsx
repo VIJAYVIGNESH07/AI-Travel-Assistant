@@ -14,16 +14,19 @@ type Post = {
   caption: string;
   likes: number;
   comments: number;
+  shares: number;
 };
 
 type Props = {
   post: Post;
   liked?: boolean;
   onLikePress?: () => void;
+  onCommentPress?: () => void;
+  onSharePress?: () => void;
   onOpenPress?: () => void;
 };
 
-const PostCard = ({ post, liked = false, onLikePress, onOpenPress }: Props) => {
+const PostCard = ({ post, liked = false, onLikePress, onCommentPress, onSharePress, onOpenPress }: Props) => {
   const theme = useTheme();
   return (
     <View style={[styles.card, { backgroundColor: theme.colors.surface }, theme.shadows.level2]}
@@ -42,13 +45,13 @@ const PostCard = ({ post, liked = false, onLikePress, onOpenPress }: Props) => {
             <Ionicons name={liked ? 'heart' : 'heart-outline'} size={16} color={theme.colors.accent} />
             <Text style={[styles.actionText, { color: theme.colors.textSecondary }]}>{formatCount(post.likes)}</Text>
           </Pressable>
-          <Pressable style={styles.action}>
+          <Pressable style={styles.action} onPress={onCommentPress}>
             <Ionicons name="chatbubble" size={16} color={theme.colors.blue} />
             <Text style={[styles.actionText, { color: theme.colors.textSecondary }]}>{formatCount(post.comments)}</Text>
           </Pressable>
-          <Pressable style={styles.action}>
+          <Pressable style={styles.action} onPress={onSharePress}>
             <Ionicons name="share" size={16} color={theme.colors.slate500} />
-            <Text style={[styles.actionText, { color: theme.colors.textSecondary }]}>Share</Text>
+            <Text style={[styles.actionText, { color: theme.colors.textSecondary }]}>{formatCount(post.shares)}</Text>
           </Pressable>
           <Pressable style={styles.action}>
             <Ionicons name="bookmark" size={16} color={theme.colors.slate500} />

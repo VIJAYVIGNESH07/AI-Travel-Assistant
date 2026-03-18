@@ -25,7 +25,7 @@ const UploadStoryScreen = () => {
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      allowsEditing: true,
+      allowsEditing: false,
       quality: 0.7,
       base64: true
     });
@@ -72,10 +72,10 @@ const UploadStoryScreen = () => {
           {imageUri ? (
             <Image source={{ uri: imageUri }} style={styles.previewImage} />
           ) : (
-            <Text style={{ color: theme.colors.textSecondary }}>Add story media</Text>
+            <Text style={{ color: theme.colors.textSecondary }}>Select story image</Text>
           )}
         </Pressable>
-        <GradientButton title="Upload" onPress={handleUpload} />
+        <GradientButton title="Upload Story" onPress={handleUpload} />
       </View>
     </SafeAreaView>
   );
