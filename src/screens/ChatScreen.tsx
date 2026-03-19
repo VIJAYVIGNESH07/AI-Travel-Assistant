@@ -24,6 +24,31 @@ import { ChatMessage, ChatPlanResponse, ChatPlanOption, ChatItineraryDay } from 
 
 const formatINR = (amount: number) => `\u20b9${amount.toLocaleString('en-IN')}`;
 
+const getTransportUiMeta = (type: string, provider: string) => {
+  const key = `${type} ${provider}`.toLowerCase();
+
+  if (key.includes('multimodal') || key.includes('rome2rio')) {
+    return { label: 'Multimodal', bg: '#ECEFF1', border: '#B0BEC5', accent: '#37474F' };
+  }
+  if (key.includes('train') || key.includes('irctc')) {
+    return { label: 'Train', bg: '#E8F5E9', border: '#A5D6A7', accent: '#2E7D32' };
+  }
+  if (key.includes('bus') || key.includes('redbus')) {
+    return { label: 'Bus', bg: '#FFF3E0', border: '#FFCC80', accent: '#EF6C00' };
+  }
+  if (key.includes('ferry') || key.includes('boat')) {
+    return { label: 'Ferry/Boat', bg: '#E0F7FA', border: '#80DEEA', accent: '#006064' };
+  }
+  if (key.includes('flight') || key.includes('indigo') || key.includes('air india') || key.includes('skyscanner') || key.includes('google flights')) {
+    return { label: 'Flight', bg: '#E8F0FE', border: '#90CAF9', accent: '#1565C0' };
+  }
+  if (key.includes('local') || key.includes('uber') || key.includes('ola') || key.includes('taxi')) {
+    return { label: 'Local Transfer', bg: '#F3E5F5', border: '#CE93D8', accent: '#6A1B9A' };
+  }
+
+  return { label: type || 'Transport', bg: '#F5F5F5', border: '#CFD8DC', accent: '#455A64' };
+};
+
 const ChatScreen = () => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -40,7 +65,7 @@ const ChatScreen = () => {
   }, []);
 
   const buildHistory = (items: ChatMessage[]) =>
-    items.slice(-10).map((item) => ({ role: item.role, content: item.text }));
+    items.slice(-20).map((item) => ({ role: item.role, content: item.text }));
 
   const openLink = async (link: string) => {
     try {
@@ -119,24 +144,40 @@ const ChatScreen = () => {
     const links = generateBookingLinks(origin, destination, international);
 
     const colors: Record<string, { bg: string; border: string; badge: string }> = {
-      'IRCTC': { bg: '#E3F2FD', border: '#90CAF9', badge: '#1565C0' },
       'IndiGo': { bg: '#EDE7F6', border: '#CE93D8', badge: '#6A1B9A' },
       'Skyscanner': { bg: '#E0F7FA', border: '#80DEEA', badge: '#00695C' },
       'Google Flights': { bg: '#FFF9C4', border: '#FFF176', badge: '#F57F17' },
       'Air India': { bg: '#FCE4EC', border: '#F48FB1', badge: '#AD1457' },
       'Redbus': { bg: '#FBE9E7', border: '#FFAB91', badge: '#BF360C' },
-      'Booking.com': { bg: '#E8EAF6', border: '#9FA8DA', badge: '#283593' }
+      'Rome2Rio': { bg: '#ECEFF1', border: '#B0BEC5', badge: '#37474F' },
+      'Uber': { bg: '#F3E5F5', border: '#CE93D8', badge: '#6A1B9A' },
+      'Ola': { bg: '#E8F5E9', border: '#A5D6A7', badge: '#2E7D32' },
+      'Booking.com': { bg: '#E8EAF6', border: '#9FA8DA', badge: '#283593' },
+      'IRCTC': { bg: '#E3F2FD', border: '#90CAF9', badge: '#1565C0' }
     };
+
+    const sortedLinks = [...links].sort((a, b) => {
+      const order: Record<string, number> = {
+        'Multimodal': 0,
+        'Train': 1,
+        'Bus': 2,
+        'Ferry/Boat': 3,
+        'Flight': 4,
+        'Local Transfer': 5,
+        'Hotel': 6
+      };
+      return (order[a.type] ?? 99) - (order[b.type] ?? 99);
+    });
 
     return (
       <View style={styles.bookingSection}>
         <Text style={[styles.bookingTitle, { color: theme.colors.textPrimary }]}>
-          Book Your Trip — Live Results
+          Easy Transport Options
         </Text>
         <Text style={[styles.bookingSubtitle, { color: theme.colors.textSecondary }]}>
-          {origin} to {destination} — tap to open live prices
+          {origin} to {destination} - tap any card to open options
         </Text>
-        {links.map((link, i) => {
+        {sortedLinks.map((link, i) => {
           const c = colors[link.provider] ?? { bg: '#F5F5F5', border: '#BDBDBD', badge: '#424242' };
           return (
             <Pressable
@@ -207,13 +248,31 @@ const ChatScreen = () => {
       {plan.transport?.length ? (
         <View style={styles.section}>
           <Text style={[styles.sectionHeading, { color: theme.colors.textPrimary }]}>Transport</Text>
-          {plan.transport.map((option, ti) => (
-            <Pressable key={`tr-${ti}`} onPress={() => openLink(option.link)} style={styles.transportLink}>
-              <Text style={[styles.linkText, { color: theme.colors.primary }]}>
-                {option.type} via {option.provider}
-              </Text>
-            </Pressable>
-          ))}
+          {plan.transport.map((option, ti) => {
+            const meta = getTransportUiMeta(option.type, option.provider);
+            return (
+              <Pressable
+                key={`tr-${ti}`}
+                onPress={() => openLink(option.link)}
+                style={({ pressed }) => [
+                  styles.transportCard,
+                  {
+                    backgroundColor: meta.bg,
+                    borderColor: meta.border,
+                    opacity: pressed ? 0.85 : 1
+                  }
+                ]}
+              >
+                <View style={styles.transportLeft}>
+                  <View style={styles.transportCopy}>
+                    <Text style={[styles.transportType, { color: meta.accent }]}>{meta.label}</Text>
+                    <Text style={[styles.transportProvider, { color: theme.colors.textPrimary }]}>{option.provider}</Text>
+                  </View>
+                </View>
+                <Text style={[styles.transportAction, { color: meta.accent }]}>Open</Text>
+              </Pressable>
+            );
+          })}
         </View>
       ) : null}
 
@@ -414,8 +473,37 @@ const styles = StyleSheet.create({
   section: { marginTop: 8 },
   sectionHeading: { fontSize: 13, fontWeight: '600', marginBottom: 4 },
   planText: { fontSize: 13, marginBottom: 4, lineHeight: 18 },
-  transportLink: { marginBottom: 5 },
-  linkText: { fontSize: 13, fontWeight: '600', textDecorationLine: 'underline' },
+  transportCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    marginBottom: 7
+  },
+  transportLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1
+  },
+  transportCopy: {
+    flex: 1
+  },
+  transportType: {
+    fontSize: 12,
+    fontWeight: '700'
+  },
+  transportProvider: {
+    marginTop: 1,
+    fontSize: 12,
+    fontWeight: '600'
+  },
+  transportAction: {
+    fontSize: 12,
+    fontWeight: '700'
+  },
   altCard: { borderWidth: 1, borderRadius: 12, padding: 12, marginBottom: 10 },
   noteText: { fontSize: 12, marginTop: 4, lineHeight: 17, fontStyle: 'italic' },
   bookingSection: { marginTop: 8, marginBottom: 12, paddingHorizontal: 4 },

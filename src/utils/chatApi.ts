@@ -17,6 +17,14 @@ const ALLOWED_TRANSPORT_DOMAINS = [
   'booking.com'
 ];
 
+type KnownTripContext = {
+  origin?: string;
+  destination?: string;
+  budgetInr?: number;
+  travelers?: number;
+  days?: number;
+};
+
 // ── Smart booking deep-link builder ─────────────────────────────────────────
 export interface BookingLink {
   provider: string;
@@ -37,8 +45,52 @@ export const generateBookingLinks = (
 
   const links: BookingLink[] = [];
 
+  // Always include a multimodal planner for flight/train/bus/ferry combinations.
+  links.push({
+    provider: 'Rome2Rio',
+    type: 'Multimodal',
+    url: `https://www.rome2rio.com/map/${from}/${to}`,
+    note: 'Compare flight, train, bus and ferry routes'
+  });
+
+  // Always surface core ground/water/local options in the UI.
+  links.push({
+    provider: 'IRCTC',
+    type: 'Train',
+    url: 'https://www.irctc.co.in/nget/train-search',
+    note: 'Check train options for intercity legs'
+  });
+
+  links.push({
+    provider: 'Redbus',
+    type: 'Bus',
+    url: `https://www.redbus.in/bus-tickets/${fromSlug}-to-${toSlug}/`,
+    note: 'Check bus options and schedules'
+  });
+
+  links.push({
+    provider: 'Rome2Rio',
+    type: 'Ferry/Boat',
+    url: `https://www.rome2rio.com/map/${from}/${to}`,
+    note: 'Check if ferry/boat legs are available on this route'
+  });
+
+  links.push({
+    provider: 'Uber',
+    type: 'Local Transfer',
+    url: 'https://www.uber.com/',
+    note: 'City transfer and last-mile rides'
+  });
+
+  links.push({
+    provider: 'Ola',
+    type: 'Local Transfer',
+    url: 'https://www.olacabs.com/',
+    note: 'Local cabs in Indian cities'
+  });
+
   if (isInternational) {
-    // Skyscanner — best for international flights
+    // International routes usually include flight + local transfers.
     links.push({
       provider: 'Skyscanner',
       type: 'Flight',
@@ -66,15 +118,9 @@ export const generateBookingLinks = (
       url: `https://www.goindigo.in/`,
       note: 'Book IndiGo flights'
     });
+
   } else {
-    // Domestic — trains via IRCTC
-    links.push({
-      provider: 'IRCTC',
-      type: 'Train',
-      url: `https://www.irctc.co.in/nget/train-search`,
-      note: 'Search & book live train tickets'
-    });
-    // Domestic flights — IndiGo
+    // Domestic routes can include flight legs as one of multiple options.
     links.push({
       provider: 'IndiGo',
       type: 'Flight',
@@ -87,13 +133,6 @@ export const generateBookingLinks = (
       type: 'Flight',
       url: `https://www.skyscanner.co.in/flights/${from}/${to}/`,
       note: 'Compare domestic flight prices'
-    });
-    // Redbus for buses
-    links.push({
-      provider: 'Redbus',
-      type: 'Bus',
-      url: `https://www.redbus.in/bus-tickets/${fromSlug}-to-${toSlug}/`,
-      note: 'Book bus tickets'
     });
   }
 
@@ -128,72 +167,52 @@ export { isInternationalTrip };
 
 
 const SYSTEM_PROMPT = [
-  'You are WanderMate AI, a friendly and intelligent travel planning assistant for Indian travelers.',
+  'You are WanderMate AI, an agentic travel planner for travelers.',
+  'Your role is to gather missing details, remember conversation context, and build practical itineraries.',
   '',
-  '== HOW TO RESPOND ==',
-  'You are a natural conversational AI. Respond naturally to any message.',
-  'Keep replies short and clear by default.',
-  'For normal chat responses, use maximum 2 short sentences.',
-  'Target under 45 words unless the user explicitly asks for detailed explanation.',
-  '- Greetings → greet back warmly, ask what travel they have in mind.',
-  '- General travel questions → answer in plain conversational text.',
-  '- If user asks for hotel booking website/link, always include: https://www.booking.com/',
-  '- Partial trip info → ask for the ONE most important missing detail.',
-  '- Origin + destination both known → generate the JSON plan.',
+  '== CORE BEHAVIOR ==',
+  'Always retain previous context from this conversation (origin, destination, dates, budget, preferences, constraints).',
+  'Never reset or restart context unless the user clearly asks to change trip details.',
+  'If user corrects a detail, update the plan using the corrected detail.',
+  'If trip details are incomplete, ask only the single most important missing question.',
+  'Never assume the user\'s starting point (origin city/country) if it is not explicitly provided.',
+  'If destination is given but origin is missing, ask: "What is your starting city?" before finalizing the plan.',
+  'Avoid flight-only bias. Choose the best realistic transport mix.',
   '',
-  '== EXTRACTING ORIGIN AND DESTINATION FROM A SINGLE MESSAGE ==',
-  'When the user writes a message, CAREFULLY extract origin and destination from it.',
-  'Common patterns you MUST recognize without asking again:',
-  '  "Salem to New York" → origin=Salem, destination=New York',
-  '  "I want to travel from Mumbai to Goa" → origin=Mumbai, destination=Goa',
-  '  "planning a Delhi to London trip" → origin=Delhi, destination=London',
-  '  "Bangalore to Singapore travel plan" → origin=Bangalore, destination=Singapore',
-  'If BOTH origin and destination are in the message, do NOT ask for them again — generate the plan.',
-  'Only ask for origin if it is truly missing and cannot be inferred from the message.',
-  '',
-  '== CONVERSATION MEMORY — NEVER FORGET CONTEXT ==',
-  'Remember everything said earlier in the conversation.',
-  'If origin, destination, or budget was mentioned before, do NOT ask for it again.',
-  'Never say "let us start fresh" or "let me start over" — always keep the known context.',
-  'If the user gives a correction (e.g. "there is no direct flight"), acknowledge it,',
-  '  explain the alternative (via a connecting hub), and continue planning from there.',
-  '',
-  '== DO NOT INVENT SPECIFIC PRICES ==',
-  'You cannot query Skyscanner, IRCTC, or Google Flights in real time.',
-  'NEVER state specific ticket prices like "IndiGo: ₹45,000" as if they are live data.',
-  'Instead use BROAD ESTIMATES only: e.g. "international flights typically cost ₹60,000-₹1,20,000".',
-  'Always tell the user to check the booking platform for actual live prices.',
-  'Budget numbers in the JSON plan are rough estimates, not live ticket prices.',
-  '',
-  '== TRANSPORT ACCURACY ==',
-  'Salem, Tamil Nadu has no airport. Route via Chennai (~330km away) or Coimbatore (~160km).',
-  'For cities without airports, always route via the nearest major Indian airport.',
-  'International trip: ONLY flights for the main journey. Auto/local train is FORBIDDEN.',
-  'Domestic long distance (>500km): train (IRCTC) or flight.',
-  'Domestic short distance (<200km): bus (Redbus) or train (IRCTC).',
-  'Auto/Ola/Uber: local city transport at the destination ONLY — not for main journey.',
+  '== RESPONSE FORMAT ==',
+  'Never use emojis in any output.',
+  'Keep language concise and practical. Avoid long disclaimers and filler.',
+  'Use plain conversational text only for greetings or when asking one missing detail.',
+  'Output JSON for travel guidance once route context is known.',
   '',
   '== WHEN TO OUTPUT JSON ==',
-  'Output JSON ONLY when you have: origin city AND destination city.',
-  'Budget and dates are optional; estimate if missing and note it.',
-  'NEVER output JSON for greetings, corrections, or casual questions.',
+  'Output JSON when origin and destination are known OR user asks route details/cost/time/transport options.',
+  'For greetings or small talk, do not output JSON.',
+  '',
+  '== ANTI-HALLUCINATION RULES ==',
+  'Do not invent real-time prices, seat availability, or schedules.',
+  'Use estimated INR ranges and clearly mark them as estimates.',
+  'Prefer realistic transport options; do not suggest impossible main-route transport.',
+  'Support all major transport modes when relevant: flight, train, bus, ferry/boat, metro, taxi and walking legs.',
   '',
   '== JSON PLAN RULES ==',
-  'ALL prices in Indian Rupees (INR). Never use USD.',
-  'Generate 2-3 plan variants (Adventure, Cultural, Relaxed).',
-  'Each plan: day-wise itinerary (3-5 activities/day), 3+ attractions, transport links, hotels if budget allows.',
-  'Approved transport links (use ONLY these):',
-  '  IRCTC: https://www.irctc.co.in/',
-  '  RedBus: https://www.redbus.in/',
-  '  IndiGo: https://www.goindigo.in/',
-  '  Air India: https://www.airindia.com/',
-  '  Skyscanner: https://www.skyscanner.com/',
-  '  Google Flights: https://www.google.com/travel/flights',
-  '  Uber: https://www.uber.com/',
-  '  Ola: https://www.olacabs.com/',
-  '  Booking.com (Hotels): https://www.booking.com/',
+  'ALL prices in INR.',
+  'Include day-wise itinerary suitable for rendering as Day 1/Day 2/Day 3 sections.',
+  'Generate 2-3 plan variants when possible.',
+  'For each plan, include transport options beyond flights whenever feasible (train, bus, ferry/boat, local transfers).',
+  'If route includes islands/coastal legs, include ferry/boat option in transport array.',
+  'Use only approved transport/booking links:',
+  'IRCTC https://www.irctc.co.in/',
+  'RedBus https://www.redbus.in/',
+  'IndiGo https://www.goindigo.in/',
+  'Air India https://www.airindia.com/',
+  'Skyscanner https://www.skyscanner.com/',
+  'Google Flights https://www.google.com/travel/flights',
+  'Uber https://www.uber.com/',
+  'Ola https://www.olacabs.com/',
+  'Booking.com https://www.booking.com/',
   '',
-  'JSON schema (output ONLY this — no surrounding text — when generating a plan):',
+  'JSON schema (strict):',
   '{',
   '  "feasible": boolean,',
   '  "summary": string,',
@@ -203,13 +222,87 @@ const SYSTEM_PROMPT = [
   '  "plans": [{ "label": string, "itinerary": [{ "day": number, "plan": string[] }], "transport": [{ "type": string, "provider": string, "link": string }], "attractions": string[], "hotels": [{ "name": string, "area": string, "approx_price": string }] }],',
   '  "alternatives": string[],',
   '  "notes": string[]',
-  '}',
-  '',
-  'For all other messages: reply in friendly plain text only. No JSON.'
+  '}'
 ].join('\n');
 
-const buildUserPrompt = (request: ChatRequest) => {
+const cleanPlace = (value: string) => value.replace(/[^a-zA-Z\s]/g, '').replace(/\s+/g, ' ').trim();
+
+const stripEmojis = (text: string) =>
+  text
+    .replace(/[\u{1F300}-\u{1FAFF}]/gu, '')
+    .replace(/[\u2600-\u27BF]/gu, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+
+const parseKnownContext = (request: ChatRequest): KnownTripContext => {
+  const context: KnownTripContext = {};
+  const userMessages = [
+    ...(request.history || []).filter((h) => h.role === 'user').map((h) => h.content || ''),
+    request.message || ''
+  ];
+
+  const patterns = [
+    /from\s+([a-zA-Z\s]{2,40}?)\s+to\s+([a-zA-Z\s]{2,40})(?:[\s,.!?]|$)/i,
+    /\b([a-zA-Z\s]{2,40}?)\s+to\s+([a-zA-Z\s]{2,40})(?:[\s,.!?]|$)/i,
+    /between\s+([a-zA-Z\s]{2,40}?)\s+and\s+([a-zA-Z\s]{2,40})(?:[\s,.!?]|$)/i
+  ];
+
+  userMessages.forEach((message) => {
+    const text = message || '';
+
+    for (const pattern of patterns) {
+      const match = text.match(pattern);
+      if (match) {
+        const origin = cleanPlace(match[1]);
+        const destination = cleanPlace(match[2]);
+        if (origin && destination) {
+          context.origin = origin;
+          context.destination = destination;
+          break;
+        }
+      }
+    }
+
+    const budgetMatch = text.match(/(?:₹|rs\.?|inr)\s*([0-9][0-9,]*)|budget\s*(?:is|of|around)?\s*([0-9][0-9,]*)/i);
+    if (budgetMatch) {
+      const raw = (budgetMatch[1] || budgetMatch[2] || '').replace(/,/g, '');
+      const value = Number(raw);
+      if (!Number.isNaN(value) && value > 0) {
+        context.budgetInr = value;
+      }
+    }
+
+    const travelersMatch = text.match(/(\d+)\s*(?:traveler|travellers|people|persons)/i);
+    if (travelersMatch) {
+      const value = Number(travelersMatch[1]);
+      if (!Number.isNaN(value) && value > 0) {
+        context.travelers = value;
+      }
+    }
+
+    const daysMatch = text.match(/(\d+)\s*(?:day|days)/i);
+    if (daysMatch) {
+      const value = Number(daysMatch[1]);
+      if (!Number.isNaN(value) && value > 0) {
+        context.days = value;
+      }
+    }
+  });
+
+  return context;
+};
+
+const buildUserPrompt = (request: ChatRequest, known: KnownTripContext) => {
   const lines: string[] = [];
+
+  if (known.origin || known.destination || known.budgetInr || known.travelers || known.days) {
+    lines.push('Known conversation context:');
+    if (known.origin) lines.push(`- Origin: ${known.origin}`);
+    if (known.destination) lines.push(`- Destination: ${known.destination}`);
+    if (known.budgetInr) lines.push(`- Budget: ${known.budgetInr} INR`);
+    if (known.travelers) lines.push(`- Travelers: ${known.travelers}`);
+    if (known.days) lines.push(`- Days: ${known.days}`);
+  }
 
   if (request.tripRequest) {
     const trip = request.tripRequest;
@@ -225,6 +318,14 @@ const buildUserPrompt = (request: ChatRequest) => {
 
   lines.push('User message:');
   lines.push(request.message || '');
+
+  if (known.origin && known.destination) {
+    lines.push('Instruction: Origin and destination are already known from context.');
+    lines.push('Do not ask for them again. Return a complete JSON travel plan now.');
+  } else if (!known.origin && known.destination) {
+    lines.push('Instruction: Destination is known but origin is missing.');
+    lines.push('Ask exactly one question to get the starting city. Do not assume origin.');
+  }
 
   return lines.join('\n');
 };
@@ -286,30 +387,78 @@ const normalizeResponse = (data: Record<string, unknown>) => {
   }
 };
 
+const createFallbackPlan = (known: KnownTripContext): Record<string, unknown> => {
+  const origin = known.origin || 'Origin';
+  const destination = known.destination || 'Destination';
+  const days = Math.max(known.days || 2, 2);
+  const total = Math.max(known.budgetInr || 9000, 4000);
+  const international = isInternationalTrip(origin, destination);
+
+  const bookingLinks = generateBookingLinks(origin, destination, international)
+    .filter((item) => item.type !== 'Hotel')
+    .slice(0, 6)
+    .map((item) => ({
+      type: item.type,
+      provider: item.provider,
+      link: item.url
+    }));
+
+  const perDaySample = [
+    `Start from ${origin} and reach ${destination} using your preferred mode.`,
+    `Explore key attractions and local food spots in ${destination}.`,
+    'Keep one flexible slot for weather or traffic changes.'
+  ];
+
+  const itinerary = Array.from({ length: days }, (_, idx) => ({
+    day: idx + 1,
+    plan: [perDaySample[Math.min(idx, perDaySample.length - 1)]]
+  }));
+
+  const transportEstimate = Math.round(total * 0.42);
+  const lodgingEstimate = Math.round(total * 0.3);
+  const foodEstimate = Math.round(total * 0.18);
+  const localEstimate = Math.max(total - (transportEstimate + lodgingEstimate + foodEstimate), 0);
+
+  return {
+    feasible: true,
+    summary: `Here is a practical ${origin} to ${destination} plan with estimate ranges in INR.`,
+    origin,
+    destination,
+    budget: {
+      currency: 'INR',
+      total_estimate: total,
+      breakdown: {
+        transport: transportEstimate,
+        lodging: lodgingEstimate,
+        food: foodEstimate,
+        local_transport: localEstimate
+      }
+    },
+    plans: [
+      {
+        label: 'Balanced Plan',
+        itinerary,
+        transport: bookingLinks,
+        attractions: ['Main city landmarks', 'Local market walk', 'Evening viewpoint'],
+        hotels: [{ name: 'Well-rated central stay', area: destination, approx_price: 'INR 1800-3200 per night' }]
+      }
+    ],
+    alternatives: ['Increase budget by 15-20% for weekend peak dates.', 'Reduce one hotel night for tighter budgets.'],
+    notes: ['Costs are estimates and may vary by season and booking time.']
+  };
+};
+
 const toBriefReply = (text: string) => {
-  const normalized = text.replace(/\s+/g, ' ').trim();
+  const normalized = stripEmojis(text.replace(/\s+/g, ' ').trim());
   if (!normalized) {
     return 'I am here to help with your travel plans.';
   }
 
-  const parts = normalized
-    .split(/(?<=[.!?])\s+/)
-    .map((part) => part.trim())
-    .filter(Boolean);
-
-  const twoSentences = parts.slice(0, 2).join(' ');
-  const base = twoSentences || normalized;
-  return base.length > 220 ? `${base.slice(0, 217).trimEnd()}...` : base;
+  // Return full response text without length clipping.
+  return normalized;
 };
 
-export const sendChatMessage = async (payload: ChatRequest): Promise<ChatApiResponse> => {
-  if (!GROQ_API_KEY) {
-    throw new Error('Missing EXPO_PUBLIC_GROQ_API_KEY.');
-  }
-
-  const userPrompt = buildUserPrompt(payload);
-  const history = Array.isArray(payload.history) ? payload.history.slice(-6) : [];
-
+const requestGroqCompletion = async (messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>) => {
   const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -318,13 +467,9 @@ export const sendChatMessage = async (payload: ChatRequest): Promise<ChatApiResp
     },
     body: JSON.stringify({
       model: GROQ_MODEL,
-      temperature: 0.4,
-      max_tokens: 1000,
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        ...history,
-        { role: 'user', content: userPrompt }
-      ]
+      temperature: 0.3,
+      max_tokens: 1400,
+      messages
     })
   });
 
@@ -333,21 +478,92 @@ export const sendChatMessage = async (payload: ChatRequest): Promise<ChatApiResp
     throw new Error(`Groq API request failed (${response.status}). ${responseText}`);
   }
 
-  let rawContent = '';
   try {
     const parsedPayload = JSON.parse(responseText) as {
       choices?: Array<{ message?: { content?: string } }>;
     };
-    rawContent = parsedPayload?.choices?.[0]?.message?.content?.trim() || '';
+    return parsedPayload?.choices?.[0]?.message?.content?.trim() || '';
   } catch {
-    rawContent = responseText;
+    return responseText;
   }
+};
+
+export const sendChatMessage = async (payload: ChatRequest): Promise<ChatApiResponse> => {
+  if (!GROQ_API_KEY) {
+    throw new Error('Missing EXPO_PUBLIC_GROQ_API_KEY.');
+  }
+
+  const known = parseKnownContext(payload);
+  const userPrompt = buildUserPrompt(payload, known);
+  const history = Array.isArray(payload.history) ? payload.history.slice(-24) : [];
+
+  let rawContent = await requestGroqCompletion([
+    { role: 'system', content: SYSTEM_PROMPT },
+    ...history,
+    { role: 'user', content: userPrompt }
+  ]);
 
   let parsed: Record<string, unknown> | null = null;
   try {
     parsed = extractJson(rawContent);
   } catch {
     parsed = null;
+  }
+
+  const shouldForcePlan = Boolean(known.origin && known.destination);
+  if (!parsed && shouldForcePlan) {
+    const repairPrompt = [
+      'Return ONLY valid JSON following the required schema.',
+      'Do not ask any question.',
+      `Origin: ${known.origin}`,
+      `Destination: ${known.destination}`,
+      known.budgetInr ? `Budget INR: ${known.budgetInr}` : '',
+      known.travelers ? `Travelers: ${known.travelers}` : '',
+      known.days ? `Days: ${known.days}` : '',
+      `Latest user message: ${payload.message || ''}`,
+      'Use realistic estimates and include day-wise itinerary in plans[].itinerary.',
+      'JSON only.'
+    ].filter(Boolean).join('\n');
+
+    const retryContent = await requestGroqCompletion([
+      { role: 'system', content: SYSTEM_PROMPT },
+      ...history,
+      { role: 'user', content: repairPrompt }
+    ]);
+
+    try {
+      parsed = extractJson(retryContent);
+      rawContent = retryContent;
+    } catch {
+      // One more strict retry to avoid plain text fallback for known routes.
+      const hardRetryPrompt = [
+        'Return ONLY valid JSON. Any non-JSON output is invalid.',
+        'No markdown. No explanations. No emojis.',
+        `Origin: ${known.origin}`,
+        `Destination: ${known.destination}`,
+        known.budgetInr ? `Budget INR: ${known.budgetInr}` : '',
+        known.travelers ? `Travelers: ${known.travelers}` : '',
+        known.days ? `Days: ${known.days}` : '',
+        `Latest user message: ${payload.message || ''}`,
+        'Must include feasible, summary, origin, destination, budget, plans, alternatives, notes.',
+        'plans must include itinerary day arrays and transport links from approved domains only.',
+        'JSON only.'
+      ].filter(Boolean).join('\n');
+
+      const hardRetryContent = await requestGroqCompletion([
+        { role: 'system', content: SYSTEM_PROMPT },
+        ...history,
+        { role: 'user', content: hardRetryPrompt }
+      ]);
+
+      try {
+        parsed = extractJson(hardRetryContent);
+        rawContent = hardRetryContent;
+      } catch {
+        parsed = createFallbackPlan(known);
+        rawContent = '';
+      }
+    }
   }
 
   if (parsed) {
@@ -362,7 +578,7 @@ export const sendChatMessage = async (payload: ChatRequest): Promise<ChatApiResp
   // - If nothing was parsed → rawContent is plain conversational text, show as-is
   const reply = parsed
     ? (typeof parsed.summary === 'string' && parsed.summary.trim()
-      ? toBriefReply(parsed.summary)
+      ? stripEmojis(parsed.summary)
       : 'Here are your travel plan options.')
     : toBriefReply(rawContent);
 
