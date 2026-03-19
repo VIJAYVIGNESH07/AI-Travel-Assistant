@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, StyleProp, ViewStyle } from 'react-native';
 import { useTheme } from '../../theme/ThemeProvider';
-import type { MapMarkerItem, MapRegion } from './MapViewCompat.types';
+import type { MapMarkerItem, MapRegion, MapPressLocation } from './MapViewCompat.types';
 
 type MapViewCompatProps = {
     style?: StyleProp<ViewStyle>;
@@ -9,6 +9,7 @@ type MapViewCompatProps = {
     markers: MapMarkerItem[];
     fallbackTitle?: string;
     fallbackBody?: string;
+    onPressLocation?: (location: MapPressLocation) => void;
 };
 
 const MapViewCompat = ({ style, fallbackTitle, fallbackBody }: MapViewCompatProps) => {

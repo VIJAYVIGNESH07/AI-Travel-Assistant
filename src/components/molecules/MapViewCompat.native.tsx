@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, StyleProp, ViewStyle, View, Text } from 'react-native';
-import { WebView } from 'react-native-webview';
-import type { MapMarkerItem, MapRegion } from './MapViewCompat.types';
+import { WebView, WebViewMessageEvent } from 'react-native-webview';
+import type { MapMarkerItem, MapRegion, MapPressLocation } from './MapViewCompat.types';
 
 type MapViewCompatProps = {
   style?: StyleProp<ViewStyle>;
@@ -9,6 +9,7 @@ type MapViewCompatProps = {
   markers: MapMarkerItem[];
   fallbackTitle?: string;
   fallbackBody?: string;
+  onPressLocation?: (location: MapPressLocation) => void;
 };
 
 const buildMapHtml = (initialRegion: MapRegion, markers: MapMarkerItem[]) => {
@@ -59,13 +60,53 @@ const buildMapHtml = (initialRegion: MapRegion, markers: MapMarkerItem[]) => {
           marker.bindPopup(item.title);
         }
       });
+
+      let selectedMarker = null;
+      map.on('click', function (event) {
+        const latitude = Number(event.latlng.lat.toFixed(6));
+        const longitude = Number(event.latlng.lng.toFixed(6));
+
+        if (selectedMarker) {
+          map.removeLayer(selectedMarker);
+        }
+
+        selectedMarker = L.marker([latitude, longitude]).addTo(map);
+
+        if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+          window.ReactNativeWebView.postMessage(
+            JSON.stringify({ type: 'map-press', latitude, longitude })
+          );
+        }
+      });
     </script>
   </body>
 </html>`;
 };
 
-const MapViewCompat = ({ style, initialRegion, markers, fallbackTitle, fallbackBody }: MapViewCompatProps) => {
+const MapViewCompat = ({ style, initialRegion, markers, fallbackTitle, fallbackBody, onPressLocation }: MapViewCompatProps) => {
   const html = buildMapHtml(initialRegion, markers);
+
+  const handleMessage = (event: WebViewMessageEvent) => {
+    if (!onPressLocation) {
+      return;
+    }
+
+    try {
+      const payload = JSON.parse(event.nativeEvent.data || '{}');
+      if (
+        payload?.type === 'map-press' &&
+        typeof payload.latitude === 'number' &&
+        typeof payload.longitude === 'number'
+      ) {
+        onPressLocation({
+          latitude: payload.latitude,
+          longitude: payload.longitude
+        });
+      }
+    } catch {
+      // Ignore invalid bridge payloads.
+    }
+  };
 
   return (
     <View style={[styles.container, style]}>
@@ -77,10 +118,11 @@ const MapViewCompat = ({ style, initialRegion, markers, fallbackTitle, fallbackB
         domStorageEnabled
         setSupportMultipleWindows={false}
         startInLoadingState
+        onMessage={handleMessage}
       />
       <View style={styles.hintWrap}>
         <Text style={styles.hintTitle}>{fallbackTitle || 'Interactive map preview'}</Text>
-        <Text style={styles.hintBody}>{fallbackBody || 'Pan and zoom inside the app.'}</Text>
+        <Text style={styles.hintBody}>{fallbackBody || 'Tap a point to select location.'}</Text>
       </View>
     </View>
   );

@@ -12,3 +12,8 @@ export type MapMarkerItem = {
   title?: string;
   onPress?: () => void;
 };
+
+export type MapPressLocation = {
+  latitude: number;
+  longitude: number;
+};

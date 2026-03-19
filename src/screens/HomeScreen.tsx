@@ -14,6 +14,7 @@ import type { RootStackParamList } from '../navigation/types';
 import {
   getStoredPosts,
   getStoredStories,
+  deleteStoredStory,
   toImageDataUri,
   getPostInteraction,
   togglePostLike,
@@ -52,6 +53,7 @@ const HomeScreen = () => {
   const [homeStories, setHomeStories] = useState<HomeStory[]>([]);
   const [homePosts, setHomePosts] = useState<HomePost[]>([]);
   const [ownStoryId, setOwnStoryId] = useState('');
+  const [ownStoryIds, setOwnStoryIds] = useState<string[]>([]);
   const [ownStoryUris, setOwnStoryUris] = useState<string[]>([]);
   const [currentStoryIndex, setCurrentStoryIndex] = useState(0);
   const [storyViewerVisible, setStoryViewerVisible] = useState(false);
@@ -66,6 +68,7 @@ const HomeScreen = () => {
     const storedStories = await getStoredStories();
     const storedPosts = await getStoredPosts();
     const currentUserName = user?.name || 'Your Story';
+    const ownStoryAvatar = user?.avatar || staticStories[0]?.image || '';
     const ownStories = storedStories.filter((story) => story.name === currentUserName);
     const otherStories = storedStories.filter((story) => story.name !== currentUserName);
 
@@ -138,13 +141,15 @@ const HomeScreen = () => {
 
     if (ownStories.length > 0) {
       const ownUris = ownStories.map((story) => toImageDataUri(story.imageBase64));
+      const ownIds = ownStories.map((story) => story.id);
       setOwnStoryId('own-story');
+      setOwnStoryIds(ownIds);
       setOwnStoryUris(ownUris);
       setHomeStories([
         {
           id: 'own-story',
           name: 'Your Story',
-          image: ownUris[0],
+          image: ownStoryAvatar,
           seen: false,
           isAdd: false
         },
@@ -153,13 +158,14 @@ const HomeScreen = () => {
       ]);
     } else {
       setOwnStoryId('');
+      setOwnStoryIds([]);
       setOwnStoryUris([]);
       setCurrentStoryIndex(0);
       setHomeStories([
         {
           id: 'static-add-story',
           name: 'Your Story',
-          image: staticStories[0]?.image || '',
+          image: ownStoryAvatar,
           seen: false,
           isAdd: true
         },
@@ -170,7 +176,7 @@ const HomeScreen = () => {
 
     setLikedPostIds(nextLiked as string[]);
     setHomePosts(hydratedPosts);
-  }, [user?.name]);
+  }, [user?.name, user?.avatar]);
 
   useFocusEffect(
     useCallback(() => {
@@ -319,6 +325,9 @@ const HomeScreen = () => {
           <Pressable style={styles.iconButton}>
             <Ionicons name="notifications-outline" size={20} color={theme.colors.textPrimary} />
           </Pressable>
+          <Pressable style={styles.iconButton} onPress={() => navigation.navigate('HiddenSpotList')}>
+            <Ionicons name="location-outline" size={20} color={theme.colors.textPrimary} />
+          </Pressable>
           <Pressable style={styles.iconButton} onPress={() => navigation.navigate('Settings')}>
             <Ionicons name="settings-outline" size={20} color={theme.colors.textPrimary} />
           </Pressable>
@@ -359,9 +368,6 @@ const HomeScreen = () => {
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Latest Stories</Text>
               <View style={styles.headerLinks}>
-                <Pressable onPress={() => navigation.navigate('HiddenSpotList')}>
-                  <Text style={[styles.link, { color: theme.colors.primary }]}>Hidden Spots</Text>
-                </Pressable>
                 <Pressable onPress={() => navigation.navigate('Community')}>
                   <Text style={[styles.link, { color: theme.colors.primary }]}>Communities</Text>
                 </Pressable>
@@ -396,6 +402,31 @@ const HomeScreen = () => {
             }}
           >
             <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+          </Pressable>
+          <Pressable
+            style={styles.deleteStoryButton}
+            onPress={() => {
+              const storyId = ownStoryIds[currentStoryIndex];
+              if (!storyId) {
+                return;
+              }
+
+              Alert.alert('Delete Story', 'Do you want to delete this story?', [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Delete',
+                  style: 'destructive',
+                  onPress: async () => {
+                    await deleteStoredStory(storyId);
+                    setStoryViewerVisible(false);
+                    setCurrentStoryIndex(0);
+                    loadSocialData();
+                  }
+                }
+              ]);
+            }}
+          >
+            <Ionicons name="trash-outline" size={20} color="#FFFFFF" />
           </Pressable>
         </View>
       </Modal>
@@ -520,6 +551,17 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  deleteStoryButton: {
+    position: 'absolute',
+    top: 50,
+    right: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(220,38,38,0.82)',
     alignItems: 'center',
     justifyContent: 'center'
   },

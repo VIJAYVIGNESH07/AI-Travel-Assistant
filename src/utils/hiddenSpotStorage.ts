@@ -41,6 +41,8 @@ export type HiddenSpotPublicItem = {
   id: string;
   name: string;
   locationLabel: string;
+  latitude: number;
+  longitude: number;
   category: string;
   description: string;
   appliedBy: string;
@@ -366,6 +368,8 @@ export const getApprovedHiddenSpotPublicItems = async (): Promise<HiddenSpotPubl
       id: item.id,
       name: item.name,
       locationLabel: item.locationLabel,
+      latitude: item.latitude,
+      longitude: item.longitude,
       category: item.category || 'Hidden Spot',
       description: item.description,
       appliedBy: item.submittedBy || 'Traveler',

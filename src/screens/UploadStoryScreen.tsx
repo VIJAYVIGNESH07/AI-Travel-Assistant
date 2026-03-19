@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../theme/ThemeProvider';
 import GradientButton from '../components/atoms/GradientButton';
@@ -25,7 +26,8 @@ const UploadStoryScreen = () => {
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      allowsEditing: false,
+      allowsEditing: true,
+      aspect: [9, 16],
       quality: 0.7,
       base64: true
     });
@@ -68,12 +70,19 @@ const UploadStoryScreen = () => {
     >
       <View style={styles.content}>
         <Text style={[styles.title, { color: theme.colors.textPrimary }]}>Upload Story</Text>
-        <Pressable style={[styles.mediaBox, { borderColor: theme.colors.border }]} onPress={pickImage}>
+        <View style={[styles.mediaBox, { borderColor: theme.colors.border }]}>
           {imageUri ? (
             <Image source={{ uri: imageUri }} style={styles.previewImage} />
           ) : (
-            <Text style={{ color: theme.colors.textSecondary }}>Select story image</Text>
+            <Text style={{ color: theme.colors.textSecondary }}>No story image selected</Text>
           )}
+        </View>
+        <Pressable
+          style={[styles.addImageButton, { borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}
+          onPress={pickImage}
+        >
+          <Ionicons name="add-circle-outline" size={18} color={theme.colors.primary} />
+          <Text style={[styles.addImageText, { color: theme.colors.primary }]}>Add Story Image</Text>
         </Pressable>
         <GradientButton title="Upload Story" onPress={handleUpload} />
       </View>
@@ -99,12 +108,26 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16
+    marginBottom: 12
   },
   previewImage: {
     width: '100%',
     height: '100%',
     borderRadius: 16
+  },
+  addImageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 11,
+    marginBottom: 16
+  },
+  addImageText: {
+    fontSize: 13,
+    fontWeight: '700'
   }
 });
 

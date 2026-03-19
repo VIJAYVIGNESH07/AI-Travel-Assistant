@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Switch, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, Switch, ScrollView, Alert, Pressable } from 'react-native';
 import { TextInput } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -33,6 +34,7 @@ const AuthScreen = () => {
   const [remember, setRemember] = useState(true);
 
   const isLogin = mode === 'Login';
+  const actionButtonTitle = isLogin ? 'Continue' : 'Upload Profile & Continue';
 
   const pickProfileImage = async (type: 'avatar' | 'background') => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -158,25 +160,27 @@ const AuthScreen = () => {
         {!isLogin && (
           <View style={styles.mediaInputsWrap}>
             <Text style={[styles.mediaTitle, { color: theme.colors.textPrimary }]}>Profile Photo</Text>
-            <Text
-              style={[styles.mediaPicker, { borderColor: theme.colors.border, color: theme.colors.textSecondary }]}
-              onPress={() => {
-                pickProfileImage('avatar');
-              }}
+            <Pressable
+              style={[styles.mediaPicker, { borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}
+              onPress={() => pickProfileImage('avatar')}
             >
-              {avatarUri ? 'Change Profile Photo' : 'Choose Profile Photo'}
-            </Text>
+              <Ionicons name="add-circle-outline" size={18} color={theme.colors.primary} />
+              <Text style={[styles.mediaPickerText, { color: theme.colors.primary }]}>
+                {avatarUri ? 'Change Profile Photo' : 'Add Profile Photo'}
+              </Text>
+            </Pressable>
             {avatarUri ? <Image source={{ uri: avatarUri }} style={styles.avatarPreview} contentFit="cover" /> : null}
 
             <Text style={[styles.mediaTitle, { color: theme.colors.textPrimary }]}>Background Image</Text>
-            <Text
-              style={[styles.mediaPicker, { borderColor: theme.colors.border, color: theme.colors.textSecondary }]}
-              onPress={() => {
-                pickProfileImage('background');
-              }}
+            <Pressable
+              style={[styles.mediaPicker, { borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}
+              onPress={() => pickProfileImage('background')}
             >
-              {backgroundUri ? 'Change Background Image' : 'Choose Background Image'}
-            </Text>
+              <Ionicons name="add-circle-outline" size={18} color={theme.colors.primary} />
+              <Text style={[styles.mediaPickerText, { color: theme.colors.primary }]}>
+                {backgroundUri ? 'Change Background Image' : 'Add Background Image'}
+              </Text>
+            </Pressable>
             {backgroundUri ? (
               <Image source={{ uri: backgroundUri }} style={styles.backgroundPreview} contentFit="cover" />
             ) : null}
@@ -247,7 +251,7 @@ const AuthScreen = () => {
           <Text style={[styles.helper, { color: theme.colors.primary }]}>Forgot password</Text>
         </View>
 
-        <GradientButton title="Continue" onPress={handleContinue} />
+        <GradientButton title={actionButtonTitle} onPress={handleContinue} />
       </View>
     </ScrollView>
   );
@@ -286,12 +290,18 @@ const styles = StyleSheet.create({
     fontWeight: '600'
   },
   mediaPicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     borderWidth: 1,
     borderRadius: 12,
     paddingVertical: 10,
-    paddingHorizontal: 12,
+    paddingHorizontal: 12
+  },
+  mediaPickerText: {
     fontSize: 13,
-    overflow: 'hidden'
+    fontWeight: '700'
   },
   avatarPreview: {
     width: 72,

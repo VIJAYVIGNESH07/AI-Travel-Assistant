@@ -97,6 +97,12 @@ export const addStoredStory = async (story: StoredStory): Promise<void> => {
   await AsyncStorage.setItem(STORIES_KEY, JSON.stringify(next));
 };
 
+export const deleteStoredStory = async (storyId: string): Promise<void> => {
+  const existing = await getStoredStories();
+  const next = existing.filter((story) => story.id !== storyId);
+  await AsyncStorage.setItem(STORIES_KEY, JSON.stringify(next));
+};
+
 export const getStoredPosts = async (): Promise<StoredPost[]> => {
   const raw = await AsyncStorage.getItem(POSTS_KEY);
   const posts = safeParseArray<StoredPost>(raw);

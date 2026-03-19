@@ -14,12 +14,52 @@ import { HIDDEN_SPOT_ADMIN_EMAIL } from '../config/admin';
 import { sendHiddenSpotReviewEmail } from '../utils/hiddenSpotMail';
 import { addHiddenSpotSubmission } from '../utils/hiddenSpotStorage';
 
-const steps = ['Location', 'Details', 'Media', 'Review'];
+const steps = ['Location', 'Basic', 'Experience', 'Safety', 'Media', 'Review'];
 
 type HiddenSpotMedia = {
   uri: string;
   base64: string;
 };
+
+const LOCATION_TYPE_OPTIONS = ['Forest', 'Mountain', 'Beach', 'Urban', 'Other'];
+const COUNTRY_OPTIONS = ['India', 'United States', 'United Kingdom', 'Japan', 'Australia', 'Others'];
+const SPECIAL_OPTIONS = ['Scenic view', 'Wildlife', 'Historical significance', 'Cultural importance', 'Adventure activities'];
+const BEST_SEASON_OPTIONS = ['Spring', 'Summer', 'Monsoon/Rainy', 'Autumn/Fall', 'Winter', 'Year-round'];
+const VISIT_DURATION_OPTIONS = ['1-2 hours', 'Half day', 'Full day', 'Multiple days'];
+const TRANSPORT_OPTIONS = ['Public transport', 'Private car', 'Walking/Hiking', 'Bicycle', 'Boat/Ferry'];
+const DIFFICULTY_OPTIONS = ['Easy (Suitable for all)', 'Moderate (Some physical effort)', 'Hard (Experienced only)'];
+const ACCESSIBILITY_OPTIONS = ['Wheelchair accessible', 'Kid-friendly', 'Senior-friendly', 'Clear signage'];
+const SAFETY_RATING_OPTIONS = [
+  '5 - Very safe',
+  '4 - Generally safe',
+  '3 - Some concerns',
+  '2 - Moderate risk',
+  '1 - High risk'
+];
+const HAZARD_OPTIONS = ['Difficult terrain', 'Wildlife encounters', 'Extreme weather', 'Crime/Theft', 'None significant'];
+const SAFETY_EQUIPMENT_OPTIONS = ['First aid kit', 'Extra water', 'Mobile phone', 'Map/GPS', 'Flashlight'];
+
+type HiddenSpotForm = {
+  name: string;
+  locationType: string;
+  country: string;
+  specialHighlights: string[];
+  bestSeason: string;
+  visitDuration: string;
+  transportOptions: string[];
+  difficulty: string;
+  accessibilityFeatures: string[];
+  safetyRating: string;
+  potentialHazards: string[];
+  safetyEquipment: string[];
+};
+
+type MultiSelectField =
+  | 'specialHighlights'
+  | 'transportOptions'
+  | 'accessibilityFeatures'
+  | 'potentialHazards'
+  | 'safetyEquipment';
 
 const HiddenSpotScreen = () => {
   const theme = useTheme();
@@ -33,13 +73,127 @@ const HiddenSpotScreen = () => {
     longitude: 77.5946
   });
   const [mediaList, setMediaList] = useState<HiddenSpotMedia[]>([]);
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<HiddenSpotForm>({
     name: '',
-    category: 'Nature',
-    description: '',
-    accessibility: '',
-    bestTime: ''
+    locationType: 'Forest',
+    country: 'India',
+    specialHighlights: ['Scenic view'],
+    bestSeason: 'Year-round',
+    visitDuration: 'Half day',
+    transportOptions: ['Public transport'],
+    difficulty: 'Easy (Suitable for all)',
+    accessibilityFeatures: ['Kid-friendly'],
+    safetyRating: '5 - Very safe',
+    potentialHazards: ['None significant'],
+    safetyEquipment: ['Mobile phone']
   });
+
+  const toggleMultiOption = (key: MultiSelectField, value: string) => {
+    setForm((current) => {
+      const exists = current[key].includes(value);
+      const nextValues = exists ? current[key].filter((item) => item !== value) : [...current[key], value];
+      return {
+        ...current,
+        [key]: nextValues
+      };
+    });
+  };
+
+  const buildDetailsSummary = (data: HiddenSpotForm) =>
+    [
+      `Location Type: ${data.locationType}`,
+      `Country: ${data.country}`,
+      `What makes this spot special: ${data.specialHighlights.join(', ')}`,
+      `Best season to visit: ${data.bestSeason}`,
+      `Recommended visit duration: ${data.visitDuration}`,
+      `Transportation options: ${data.transportOptions.join(', ')}`,
+      `Difficulty level: ${data.difficulty}`,
+      `Accessibility features: ${data.accessibilityFeatures.join(', ')}`,
+      `Safety rating: ${data.safetyRating}`,
+      `Potential hazards: ${data.potentialHazards.join(', ')}`,
+      `Recommended safety equipment: ${data.safetyEquipment.join(', ')}`
+    ].join('\n');
+
+  const renderSingleSelect = (
+    label: string,
+    options: string[],
+    selectedValue: string,
+    onSelect: (value: string) => void
+  ) => (
+    <View
+      style={[
+        styles.choiceCard,
+        { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }
+      ]}
+    >
+      <Text style={[styles.choiceLabel, { color: theme.colors.textPrimary }]}>{label}</Text>
+      <View style={styles.choiceWrap}>
+        {options.map((option) => {
+          const selected = selectedValue === option;
+          return (
+            <Pressable
+              key={`${label}-${option}`}
+              style={[
+                styles.choiceChip,
+                {
+                  borderColor: selected ? theme.colors.primary : theme.colors.border,
+                  backgroundColor: selected ? theme.colors.primary : theme.colors.surface
+                }
+              ]}
+              onPress={() => onSelect(option)}
+            >
+              <Text
+                style={[
+                  styles.choiceChipText,
+                  { color: selected ? theme.colors.white : theme.colors.textSecondary }
+                ]}
+              >
+                {option}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+
+  const renderMultiSelect = (label: string, options: string[], key: MultiSelectField) => (
+    <View
+      style={[
+        styles.choiceCard,
+        { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }
+      ]}
+    >
+      <Text style={[styles.choiceLabel, { color: theme.colors.textPrimary }]}>{label}</Text>
+      <View style={styles.choiceWrap}>
+        {options.map((option) => {
+          const selected = form[key].includes(option);
+          return (
+            <Pressable
+              key={`${label}-${option}`}
+              style={[
+                styles.choiceChip,
+                {
+                  borderColor: selected ? theme.colors.primary : theme.colors.border,
+                  backgroundColor: selected ? theme.colors.primary : theme.colors.surface
+                }
+              ]}
+              onPress={() => toggleMultiOption(key, option)}
+            >
+              <Text
+                style={[
+                  styles.choiceChipText,
+                  { color: selected ? theme.colors.white : theme.colors.textSecondary }
+                ]}
+              >
+                {option}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
 
   const next = () => setStep((prev) => Math.min(prev + 1, steps.length - 1));
   const back = () => setStep((prev) => Math.max(prev - 1, 0));
@@ -94,18 +248,31 @@ const HiddenSpotScreen = () => {
         return false;
       }
 
-      if (!form.category.trim()) {
-        Alert.alert('Missing details', 'Please enter a category.');
-        return false;
-      }
-
-      if (!form.description.trim() || form.description.trim().length < 20) {
-        Alert.alert('Missing details', 'Please enter a description with at least 20 characters.');
+      if (!form.locationType.trim() || !form.country.trim()) {
+        Alert.alert('Missing details', 'Please choose location type and country.');
         return false;
       }
     }
 
-    if (step === 2 && mediaList.length === 0) {
+    if (step === 2) {
+      if (form.specialHighlights.length === 0 || form.transportOptions.length === 0) {
+        Alert.alert('Missing details', 'Please choose special highlights and transport options.');
+        return false;
+      }
+    }
+
+    if (step === 3) {
+      if (
+        form.accessibilityFeatures.length === 0 ||
+        form.potentialHazards.length === 0 ||
+        form.safetyEquipment.length === 0
+      ) {
+        Alert.alert('Missing details', 'Please select at least one option in all safety sections.');
+        return false;
+      }
+    }
+
+    if (step === 4 && mediaList.length === 0) {
       Alert.alert('Media required', 'Please add at least one image.');
       return false;
     }
@@ -157,6 +324,31 @@ const HiddenSpotScreen = () => {
     }
   };
 
+  const handleMapLocationSelect = async (location: { latitude: number; longitude: number }) => {
+    const latitude = Number(location.latitude.toFixed(6));
+    const longitude = Number(location.longitude.toFixed(6));
+    setCoordinates({ latitude, longitude });
+    setLocationLabel(`Lat ${latitude}, Lng ${longitude}`);
+
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status !== 'granted') {
+        return;
+      }
+
+      const reverse = await Location.reverseGeocodeAsync({ latitude, longitude });
+      if (reverse.length > 0) {
+        const top = reverse[0];
+        const formatted = [top.city, top.region, top.country].filter(Boolean).join(', ');
+        if (formatted) {
+          setLocationLabel(formatted);
+        }
+      }
+    } catch {
+      // Keep current label when reverse geocode fails.
+    }
+  };
+
   const handleSubmitForReview = async () => {
     if (!validateStep()) {
       return;
@@ -164,6 +356,7 @@ const HiddenSpotScreen = () => {
 
     const submissionId = `hs-${Date.now()}`;
     const submittedAt = Date.now();
+    const detailSummary = buildDetailsSummary(form);
 
     try {
       setIsSubmitting(true);
@@ -180,10 +373,10 @@ const HiddenSpotScreen = () => {
           locationLabel: locationLabel.trim() || 'Not specified',
           latitude: coordinates.latitude,
           longitude: coordinates.longitude,
-          category: form.category.trim(),
-          description: form.description.trim(),
-          accessibility: form.accessibility.trim(),
-          bestTime: form.bestTime.trim(),
+          category: form.locationType.trim(),
+          description: detailSummary,
+          accessibility: form.accessibilityFeatures.join(', '),
+          bestTime: form.bestSeason.trim(),
           imageBase64List: mediaList.map((item) => item.base64),
           adminDecisionAt: null,
           adminNotes: ''
@@ -201,13 +394,13 @@ const HiddenSpotScreen = () => {
           submittedByHandle: user?.handle || '@traveler',
           submittedAt,
           name: form.name.trim(),
-          category: form.category.trim(),
+          category: form.locationType.trim(),
           locationLabel: locationLabel.trim() || 'Not specified',
           latitude: coordinates.latitude,
           longitude: coordinates.longitude,
-          description: form.description.trim(),
-          accessibility: form.accessibility.trim(),
-          bestTime: form.bestTime.trim(),
+          description: detailSummary,
+          accessibility: form.accessibilityFeatures.join(', '),
+          bestTime: form.bestSeason.trim(),
           mediaCount: mediaList.length
         });
       } catch (emailError) {
@@ -227,10 +420,17 @@ const HiddenSpotScreen = () => {
       setMediaList([]);
       setForm({
         name: '',
-        category: 'Nature',
-        description: '',
-        accessibility: '',
-        bestTime: ''
+        locationType: 'Forest',
+        country: 'India',
+        specialHighlights: ['Scenic view'],
+        bestSeason: 'Year-round',
+        visitDuration: 'Half day',
+        transportOptions: ['Public transport'],
+        difficulty: 'Easy (Suitable for all)',
+        accessibilityFeatures: ['Kid-friendly'],
+        safetyRating: '5 - Very safe',
+        potentialHazards: ['None significant'],
+        safetyEquipment: ['Mobile phone']
       });
     } finally {
       setIsSubmitting(false);
@@ -320,8 +520,9 @@ const HiddenSpotScreen = () => {
                     longitude: coordinates.longitude
                   }
                 ]}
+                onPressLocation={handleMapLocationSelect}
                 fallbackTitle="Map pinning works on iOS/Android."
-                fallbackBody="Continue with the form details on web."
+                fallbackBody="Tap on map to pick location. You can also use GPS or type manually."
               />
             </View>
           </View>
@@ -329,6 +530,7 @@ const HiddenSpotScreen = () => {
 
         {step === 1 && (
           <View>
+            <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Basic Details</Text>
             <TextInput
               mode="outlined"
               label="Spot name"
@@ -336,40 +538,45 @@ const HiddenSpotScreen = () => {
               onChangeText={(value) => setForm({ ...form, name: value })}
               style={styles.input}
             />
-            <TextInput
-              mode="outlined"
-              label="Category"
-              value={form.category}
-              onChangeText={(value) => setForm({ ...form, category: value })}
-              style={styles.input}
-            />
-            <TextInput
-              mode="outlined"
-              label="Description"
-              value={form.description}
-              onChangeText={(value) => setForm({ ...form, description: value })}
-              style={styles.input}
-              multiline
-              numberOfLines={4}
-            />
-            <TextInput
-              mode="outlined"
-              label="Accessibility"
-              value={form.accessibility}
-              onChangeText={(value) => setForm({ ...form, accessibility: value })}
-              style={styles.input}
-            />
-            <TextInput
-              mode="outlined"
-              label="Best time to visit"
-              value={form.bestTime}
-              onChangeText={(value) => setForm({ ...form, bestTime: value })}
-              style={styles.input}
-            />
+            {renderSingleSelect('Location type', LOCATION_TYPE_OPTIONS, form.locationType, (value) =>
+              setForm((current) => ({ ...current, locationType: value }))
+            )}
+            {renderSingleSelect('Country', COUNTRY_OPTIONS, form.country, (value) =>
+              setForm((current) => ({ ...current, country: value }))
+            )}
           </View>
         )}
 
         {step === 2 && (
+          <View>
+            <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Experience Details</Text>
+            {renderMultiSelect('What makes this spot special?', SPECIAL_OPTIONS, 'specialHighlights')}
+            {renderSingleSelect('Best season to visit', BEST_SEASON_OPTIONS, form.bestSeason, (value) =>
+              setForm((current) => ({ ...current, bestSeason: value }))
+            )}
+            {renderSingleSelect('Recommended visit duration', VISIT_DURATION_OPTIONS, form.visitDuration, (value) =>
+              setForm((current) => ({ ...current, visitDuration: value }))
+            )}
+            {renderMultiSelect('Transportation options', TRANSPORT_OPTIONS, 'transportOptions')}
+          </View>
+        )}
+
+        {step === 3 && (
+          <View>
+            <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Safety Details</Text>
+            {renderSingleSelect('Difficulty level', DIFFICULTY_OPTIONS, form.difficulty, (value) =>
+              setForm((current) => ({ ...current, difficulty: value }))
+            )}
+            {renderMultiSelect('Accessibility features', ACCESSIBILITY_OPTIONS, 'accessibilityFeatures')}
+            {renderSingleSelect('Safety rating', SAFETY_RATING_OPTIONS, form.safetyRating, (value) =>
+              setForm((current) => ({ ...current, safetyRating: value }))
+            )}
+            {renderMultiSelect('Potential hazards', HAZARD_OPTIONS, 'potentialHazards')}
+            {renderMultiSelect('Recommended safety equipment', SAFETY_EQUIPMENT_OPTIONS, 'safetyEquipment')}
+          </View>
+        )}
+
+        {step === 4 && (
           <View>
             <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Upload Media</Text>
             <Pressable
@@ -383,7 +590,7 @@ const HiddenSpotScreen = () => {
                 <View key={item.uri} style={styles.mediaItemWrap}>
                   <Image source={{ uri: item.uri }} style={styles.mediaImage} contentFit="cover" />
                   <Pressable style={styles.mediaRemove} onPress={() => removeMedia(item.uri)}>
-                    <Text style={styles.mediaRemoveText}>×</Text>
+                    <Text style={styles.mediaRemoveText}>x</Text>
                   </Pressable>
                 </View>
               ))}
@@ -391,11 +598,10 @@ const HiddenSpotScreen = () => {
           </View>
         )}
 
-        {step === 3 && (
+        {step === 5 && (
           <View>
             <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Review</Text>
-            <View style={[styles.reviewCard, { backgroundColor: theme.colors.surface }]}
-            >
+            <View style={[styles.reviewCard, { backgroundColor: theme.colors.surface }]}>
               <Text style={[styles.reviewText, { color: theme.colors.textPrimary }]}>
                 Name: {form.name || 'Untitled spot'}
               </Text>
@@ -406,16 +612,37 @@ const HiddenSpotScreen = () => {
                 Coordinates: {coordinates.latitude}, {coordinates.longitude}
               </Text>
               <Text style={[styles.reviewText, { color: theme.colors.textPrimary }]}>
-                Category: {form.category}
+                Location type: {form.locationType}
               </Text>
               <Text style={[styles.reviewText, { color: theme.colors.textPrimary }]}>
-                Description: {form.description || 'No description'}
+                Country: {form.country}
               </Text>
               <Text style={[styles.reviewText, { color: theme.colors.textPrimary }]}>
-                Accessibility: {form.accessibility || 'Not specified'}
+                Special highlights: {form.specialHighlights.join(', ')}
               </Text>
               <Text style={[styles.reviewText, { color: theme.colors.textPrimary }]}>
-                Best time: {form.bestTime || 'Not specified'}
+                Best season: {form.bestSeason}
+              </Text>
+              <Text style={[styles.reviewText, { color: theme.colors.textPrimary }]}>
+                Visit duration: {form.visitDuration}
+              </Text>
+              <Text style={[styles.reviewText, { color: theme.colors.textPrimary }]}>
+                Transportation: {form.transportOptions.join(', ')}
+              </Text>
+              <Text style={[styles.reviewText, { color: theme.colors.textPrimary }]}>
+                Difficulty: {form.difficulty}
+              </Text>
+              <Text style={[styles.reviewText, { color: theme.colors.textPrimary }]}>
+                Accessibility: {form.accessibilityFeatures.join(', ')}
+              </Text>
+              <Text style={[styles.reviewText, { color: theme.colors.textPrimary }]}>
+                Safety rating: {form.safetyRating}
+              </Text>
+              <Text style={[styles.reviewText, { color: theme.colors.textPrimary }]}>
+                Potential hazards: {form.potentialHazards.join(', ')}
+              </Text>
+              <Text style={[styles.reviewText, { color: theme.colors.textPrimary }]}>
+                Recommended safety equipment: {form.safetyEquipment.join(', ')}
               </Text>
               <Text style={[styles.reviewText, { color: theme.colors.textPrimary }]}>
                 Media count: {mediaList.length}
@@ -464,7 +691,8 @@ const styles = StyleSheet.create({
     marginBottom: 6
   },
   stepLabel: {
-    fontSize: 10
+    fontSize: 10,
+    textAlign: 'center'
   },
   sectionTitle: {
     marginTop: 20,
@@ -502,6 +730,35 @@ const styles = StyleSheet.create({
   },
   coordinateInput: {
     flex: 1
+  },
+  choiceCard: {
+    marginTop: 14,
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 12
+  },
+  choiceLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 10
+  },
+  choiceWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8
+  },
+  choiceChip: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    minHeight: 34,
+    justifyContent: 'center'
+  },
+  choiceChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center'
   },
   addMediaButton: {
     marginTop: 12,
@@ -564,3 +821,4 @@ const styles = StyleSheet.create({
 });
 
 export default HiddenSpotScreen;
+

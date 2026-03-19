@@ -10,7 +10,7 @@ import { posts } from '../data/mock';
 import SegmentedControl from '../components/molecules/SegmentedControl';
 import { useAppSelector } from '../redux/hooks';
 import type { RootStackParamList } from '../navigation/types';
-import { getStoredPosts, getStoredStories, deleteStoredPost, toImageDataUri } from '../utils/socialStorage';
+import { getStoredPosts, getStoredStories, deleteStoredPost, deleteStoredStory, toImageDataUri } from '../utils/socialStorage';
 import { getApprovedHiddenSpotsForProfile, HiddenSpotProfileSpot } from '../utils/hiddenSpotStorage';
 
 type ProfilePost = {
@@ -33,6 +33,7 @@ const ProfileScreen = () => {
   const [postViewerVisible, setPostViewerVisible] = useState(false);
   const [selectedPostImage, setSelectedPostImage] = useState('');
   const [selectedPostId, setSelectedPostId] = useState('');
+  const [profileStoryIds, setProfileStoryIds] = useState<string[]>([]);
   const [profileStoryUris, setProfileStoryUris] = useState<string[]>([]);
   const [storyViewerVisible, setStoryViewerVisible] = useState(false);
   const [storyIndex, setStoryIndex] = useState(0);
@@ -73,6 +74,7 @@ const ProfileScreen = () => {
       console.warn('[Profile] Failed to load hidden spots:', error);
     }
 
+    setProfileStoryIds(ownStories.map((story) => story.id));
     setProfileStoryUris(ownStories.map((story) => toImageDataUri(story.imageBase64)));
     setProfilePosts(ownStoredPosts);
     setProfileHiddenSpots(approvedHiddenSpots);
@@ -253,6 +255,31 @@ const ProfileScreen = () => {
             }}
           >
             <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+          </Pressable>
+          <Pressable
+            style={styles.deleteButton}
+            onPress={() => {
+              const storyId = profileStoryIds[storyIndex];
+              if (!storyId) {
+                return;
+              }
+
+              Alert.alert('Delete Story', 'Do you want to delete this story?', [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Delete',
+                  style: 'destructive',
+                  onPress: async () => {
+                    await deleteStoredStory(storyId);
+                    setStoryViewerVisible(false);
+                    setStoryIndex(0);
+                    loadProfilePosts();
+                  }
+                }
+              ]);
+            }}
+          >
+            <Ionicons name="trash-outline" size={22} color="#FFFFFF" />
           </Pressable>
         </View>
       </Modal>

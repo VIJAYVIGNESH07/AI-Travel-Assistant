@@ -46,6 +46,30 @@ export const stories = [
       'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=200&q=80',
     seen: true,
     isAdd: false
+  },
+  {
+    id: 's4',
+    name: 'Ram',
+    image:
+      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80',
+    seen: false,
+    isAdd: false
+  },
+  {
+    id: 's5',
+    name: 'Susan',
+    image:
+      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80',
+    seen: false,
+    isAdd: false
+  },
+  {
+    id: 's6',
+    name: 'Mathew',
+    image:
+      'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=200&q=80',
+    seen: true,
+    isAdd: false
   }
 ];
 
@@ -262,7 +286,7 @@ export const communities = [
     description: 'For those who love peaks and long trails.',
     joined: false,
     image:
-      'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80'
+      'https://images.pexels.com/photos/1624438/pexels-photo-1624438.jpeg?auto=compress&cs=tinysrgb&w=1200'
   },
   {
     id: 'c2',
@@ -272,7 +296,7 @@ export const communities = [
     description: 'Sun, sand, and slow mornings by the water.',
     joined: true,
     image:
-      'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1200&q=80'
+      'https://images.pexels.com/photos/1001682/pexels-photo-1001682.jpeg?auto=compress&cs=tinysrgb&w=1200'
   }
 ];
 
