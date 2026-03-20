@@ -25,6 +25,8 @@ type KnownTripContext = {
   days?: number;
 };
 
+type GeneralTalkIntent = 'greeting' | 'thanks' | 'farewell' | null;
+
 // ── Smart booking deep-link builder ─────────────────────────────────────────
 export interface BookingLink {
   provider: string;
@@ -292,6 +294,31 @@ const parseKnownContext = (request: ChatRequest): KnownTripContext => {
   return context;
 };
 
+const detectGeneralTalkIntent = (message: string): GeneralTalkIntent => {
+  const text = (message || '').trim().toLowerCase();
+  if (!text) return null;
+
+  const greetingRegex = /^(hi|hii|hello|hey|good morning|good afternoon|good evening)([\s!.,?].*)?$/i;
+  const thanksRegex = /^(thanks|thank you|thankyou|thx|ty)([\s!.,?].*)?$/i;
+  const farewellRegex = /^(bye|goodbye|see you|see you later|talk to you later|gn|good night|bye bye)([\s!.,?].*)?$/i;
+
+  if (greetingRegex.test(text)) return 'greeting';
+  if (thanksRegex.test(text)) return 'thanks';
+  if (farewellRegex.test(text)) return 'farewell';
+
+  return null;
+};
+
+const generalTalkReply = (intent: Exclude<GeneralTalkIntent, null>) => {
+  if (intent === 'greeting') {
+    return 'Hi. I can help with trip ideas, routes, budgets, or quick travel questions.';
+  }
+  if (intent === 'thanks') {
+    return 'You are welcome. If you want, I can help with your next trip as well.';
+  }
+  return 'Bye. Have a great day and travel safe.';
+};
+
 const buildUserPrompt = (request: ChatRequest, known: KnownTripContext) => {
   const lines: string[] = [];
 
@@ -491,6 +518,15 @@ const requestGroqCompletion = async (messages: Array<{ role: 'system' | 'user' |
 export const sendChatMessage = async (payload: ChatRequest): Promise<ChatApiResponse> => {
   if (!GROQ_API_KEY) {
     throw new Error('Missing EXPO_PUBLIC_GROQ_API_KEY.');
+  }
+
+  const smallTalkIntent = detectGeneralTalkIntent(payload.message || '');
+  if (smallTalkIntent) {
+    return {
+      reply: generalTalkReply(smallTalkIntent),
+      data: undefined,
+      raw: generalTalkReply(smallTalkIntent)
+    };
   }
 
   const known = parseKnownContext(payload);
