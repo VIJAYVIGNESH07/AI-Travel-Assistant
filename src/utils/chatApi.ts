@@ -294,17 +294,26 @@ const parseKnownContext = (request: ChatRequest): KnownTripContext => {
   return context;
 };
 
+const hasTravelIntentKeywords = (message: string) => {
+  const text = (message || '').toLowerCase();
+  if (!text) return false;
+  return /(trip|travel|itinerary|plan|route|from\s+.+\s+to\s+.+|budget|ticket|book|booking|flight|train|bus|hotel|visa|days?)/i.test(text);
+};
+
 const detectGeneralTalkIntent = (message: string): GeneralTalkIntent => {
   const text = (message || '').trim().toLowerCase();
   if (!text) return null;
 
-  const greetingRegex = /^(hi|hii|hello|hey|good morning|good afternoon|good evening)([\s!.,?].*)?$/i;
-  const thanksRegex = /^(thanks|thank you|thankyou|thx|ty)([\s!.,?].*)?$/i;
-  const farewellRegex = /^(bye|goodbye|see you|see you later|talk to you later|gn|good night|bye bye)([\s!.,?].*)?$/i;
+  // If a message includes travel intent, do not short-circuit to small talk.
+  if (hasTravelIntentKeywords(text)) return null;
 
-  if (greetingRegex.test(text)) return 'greeting';
+  const greetingRegex = /\b(hi|hii|hello|hey|good morning|good afternoon|good evening)\b/i;
+  const thanksRegex = /\b(thanks|thank you|thankyou|thx|ty)\b/i;
+  const farewellRegex = /\b(bye|goodbye|see you|see you later|talk to you later|gn|good night|bye bye)\b/i;
+
   if (thanksRegex.test(text)) return 'thanks';
   if (farewellRegex.test(text)) return 'farewell';
+  if (greetingRegex.test(text)) return 'greeting';
 
   return null;
 };
