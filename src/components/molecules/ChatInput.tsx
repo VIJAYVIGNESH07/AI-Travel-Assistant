@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, TextInput, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeProvider';
@@ -12,6 +12,7 @@ type Props = {
 
 const ChatInput = ({ value, onChangeText, onSend, disabled = false }: Props) => {
   const theme = useTheme();
+  const [inputHeight, setInputHeight] = useState(36);
   return (
     <View style={[styles.container, { borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}
     >
@@ -20,11 +21,14 @@ const ChatInput = ({ value, onChangeText, onSend, disabled = false }: Props) => 
         onChangeText={onChangeText}
         placeholder="Ask me anything..."
         placeholderTextColor={theme.colors.slate500}
-        style={[styles.input, { color: theme.colors.textPrimary }]}
+        style={[styles.input, { color: theme.colors.textPrimary, height: Math.max(36, Math.min(inputHeight, 140)) }]}
         editable={!disabled}
+        multiline
+        textAlignVertical="top"
         returnKeyType="send"
+        blurOnSubmit
         onSubmitEditing={onSend}
-        blurOnSubmit={false}
+        onContentSizeChange={(event) => setInputHeight(event.nativeEvent.contentSize.height)}
       />
       <Pressable
         onPress={onSend}
@@ -43,7 +47,7 @@ const ChatInput = ({ value, onChangeText, onSend, disabled = false }: Props) => 
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     width: '100%',
     minHeight: 52,
     borderWidth: 1,

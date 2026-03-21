@@ -112,15 +112,6 @@ const ChatScreen = () => {
     addUserMessage(value);
     setMessage('');
 
-    const isHotelBookingQuery =
-      /\bhotel(s)?\b/i.test(value) &&
-      /\b(book|booking|website|site|link)\b/i.test(value);
-
-    if (isHotelBookingQuery) {
-      addAssistantMessage('You can book nearby hotels on Booking.com: https://www.booking.com/');
-      return;
-    }
-
     setLoading(true);
 
     try {
