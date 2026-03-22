@@ -61,6 +61,8 @@ const FEASIBILITY = {
   MAX_BUDGET_SANITY_INR: 10_000_000
 } as const;
 
+const LONG_TRIP_SIMPLIFY_FROM_DAYS = 15;
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type KnownTripContext = {
@@ -144,6 +146,13 @@ const checkFeasibility = (
   isInternational: boolean
 ): FeasibilityResult => {
   const { days, budgetInr, origin, destination } = known;
+
+  if (days !== undefined && days <= 0) {
+    return {
+      ok: false,
+      reply: 'A 0-day trip cannot be planned. Please share at least 1 day for your trip.'
+    };
+  }
 
   if (days !== undefined && days > FEASIBILITY.MAX_DAYS) {
     return {
@@ -281,6 +290,7 @@ const buildSystemPrompt = (ctx: {
     '== STRICT RULES ==',
     'NEVER ask about a field listed under CONFIRMED above.',
     'NEVER ask more than one question per response.',
+    'If trip duration is 15 days or more, keep itinerary concise by grouping days into phases instead of detailing every day.',
     'NEVER ask for currency clarification — always treat numbers as INR.',
     'NEVER ask if the user wants budget or full-service airlines.',
     'NEVER ask about direct vs layover flights as a separate question.',
@@ -403,7 +413,7 @@ const parseKnownContext = (
   const bareNumberMatch = currentMessage.match(/^\s*(\d[\d,]*)\s*$/);
   if (bareNumberMatch) {
     const value = Number(bareNumberMatch[1].replace(/,/g, ''));
-    if (!Number.isNaN(value) && value > 0) {
+    if (!Number.isNaN(value) && value >= 0) {
       if (lastAskedField === 'days' && !context.days) context.days = value;
       else if (lastAskedField === 'budget' && !context.budgetInr) context.budgetInr = value;
       else if (lastAskedField === 'travelers' && !context.travelers) context.travelers = value;
@@ -526,6 +536,91 @@ const normalizeResponse = (data: Record<string, unknown>): Record<string, unknow
     return { ...rest, plans: [{ label: typeof data.summary === 'string' ? data.summary : 'Plan Option', itinerary, transport, attractions, hotels }] };
   }
   return data;
+};
+
+const looksLikeJsonPayload = (text: string): boolean => {
+  const value = (text || '').trim();
+  if (!value) return false;
+  if (/^```(?:json)?/i.test(value)) return true;
+  if ((value.startsWith('{') && value.endsWith('}')) || (value.startsWith('[') && value.endsWith(']'))) return true;
+  return /"feasible"\s*:|"plans"\s*:|"itinerary"\s*:|"summary"\s*:/i.test(value);
+};
+
+const simplifyLongTripItinerary = (
+  itinerary: Array<Record<string, unknown>>,
+  totalDays: number
+): Array<Record<string, unknown>> => {
+  if (!itinerary.length || totalDays < LONG_TRIP_SIMPLIFY_FROM_DAYS) return itinerary;
+
+  const maxSegments = totalDays >= 30 ? 8 : totalDays >= 21 ? 7 : 6;
+  const segmentSize = Math.max(1, Math.ceil(totalDays / maxSegments));
+  const compact: Array<Record<string, unknown>> = [];
+
+  for (let startDay = 1; startDay <= totalDays; startDay += segmentSize) {
+    const endDay = Math.min(totalDays, startDay + segmentSize - 1);
+    const source =
+      itinerary.find((item) => {
+        const dayValue = typeof item.day === 'number' ? item.day : Number(item.day);
+        return !Number.isNaN(dayValue) && dayValue >= startDay && dayValue <= endDay;
+      }) ?? itinerary[Math.min(itinerary.length - 1, startDay - 1)];
+
+    const rawPlan = Array.isArray(source?.plan) ? source.plan : [];
+    const planLines = rawPlan.filter((line): line is string => typeof line === 'string' && line.trim().length > 0);
+    const rangeLabel = startDay === endDay ? `Day ${startDay}` : `Days ${startDay}-${endDay}`;
+
+    compact.push({
+      day: startDay,
+      plan: [
+        planLines[0]
+          ? `${rangeLabel}: ${planLines[0]}`
+          : `${rangeLabel}: Cover key attractions and keep pace flexible.`,
+        ...planLines.slice(1, 2)
+      ]
+    });
+  }
+
+  return compact;
+};
+
+const simplifyLongTripResponse = (
+  data: Record<string, unknown>,
+  known: KnownTripContext
+): Record<string, unknown> => {
+  const totalDays = known.days;
+  if (!totalDays || totalDays < LONG_TRIP_SIMPLIFY_FROM_DAYS) return data;
+
+  const rawPlans = (data as { plans?: unknown }).plans;
+  if (!Array.isArray(rawPlans)) return data;
+
+  const plans = rawPlans.map((plan) => {
+    const planData = plan as Record<string, unknown>;
+    const rawItinerary = Array.isArray(planData.itinerary)
+      ? (planData.itinerary as Array<Record<string, unknown>>)
+      : [];
+
+    if (rawItinerary.length <= 10) return planData;
+
+    return {
+      ...planData,
+      itinerary: simplifyLongTripItinerary(rawItinerary, totalDays)
+    };
+  });
+
+  const existingNotes = Array.isArray((data as { notes?: unknown }).notes)
+    ? ((data as { notes?: unknown }).notes as unknown[]).filter((note): note is string => typeof note === 'string')
+    : [];
+
+  const hasLongTripNote = existingNotes.some((note) =>
+    /grouped into phases|long trip/i.test(note)
+  );
+
+  return {
+    ...data,
+    plans,
+    notes: hasLongTripNote
+      ? existingNotes
+      : [...existingNotes, 'Long trip itinerary is grouped into phases so it stays easy to follow.']
+  };
 };
 
 // ── Fallback Plan ─────────────────────────────────────────────────────────────
@@ -683,10 +778,23 @@ export const sendChatMessage = async (payload: ChatRequest): Promise<ChatApiResp
   if (parsed) {
     parsed = normalizeResponse(parsed);
     parsed = sanitizeTransportLinks(parsed);
+    parsed = simplifyLongTripResponse(parsed, known);
+  } else if (looksLikeJsonPayload(rawContent)) {
+    if (known.origin && known.destination && known.days && known.budgetInr) {
+      parsed = simplifyLongTripResponse(createFallbackPlan(known), known);
+      rawContent = '';
+    } else {
+      rawContent =
+        'I can help with that trip. Please share origin, destination, number of days, travelers, and budget in INR so I can generate a clear plan.';
+    }
   }
 
   const toCleanText = (text: string): string => {
-    const normalized = stripEmojis(text.replace(/\s+/g, ' ').trim());
+    const compactText = text.replace(/\s+/g, ' ').trim();
+    if (looksLikeJsonPayload(compactText)) {
+      return 'I prepared your trip details. Please share any missing fields, and I will present it in a clean readable format.';
+    }
+    const normalized = stripEmojis(compactText);
     return normalized || 'I am here to help with your travel plans.';
   };
 

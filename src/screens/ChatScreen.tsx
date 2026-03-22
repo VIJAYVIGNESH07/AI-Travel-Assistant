@@ -12,6 +12,7 @@ import {
   Platform,
   ScrollView
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeProvider';
 import { chatSuggestions } from '../data/mock';
@@ -19,7 +20,7 @@ import Chip from '../components/atoms/Chip';
 import ChatInput from '../components/molecules/ChatInput';
 import { sendChatMessage } from '../utils/chatApi';
 import { generateBookingLinks, isInternationalTrip } from '../utils/chatApi';
-import { addAssistantMessage, addUserMessage, getChatMessages, subscribeToChat } from '../utils/chatStore';
+import { addAssistantMessage, addUserMessage, getChatMessages, resetChatMessages, subscribeToChat } from '../utils/chatStore';
 import { ChatMessage, ChatPlanResponse, ChatPlanOption, ChatItineraryDay } from '../utils/chatTypes';
 
 const formatINR = (amount: number) => `\u20b9${amount.toLocaleString('en-IN')}`;
@@ -78,6 +79,25 @@ const ChatScreen = () => {
     } catch {
       Alert.alert('Link error', 'Could not open this link.');
     }
+  };
+
+  const handleRefreshChat = () => {
+    if (loading) return;
+    Alert.alert(
+      'Start new chat?',
+      'This will clear previous messages and start a fresh trip planning chat.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Refresh',
+          style: 'destructive',
+          onPress: () => {
+            setMessage('');
+            resetChatMessages();
+          }
+        }
+      ]
+    );
   };
 
   const renderBubbleText = (text: string) => {
@@ -346,8 +366,25 @@ const ChatScreen = () => {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={[styles.title, { color: theme.colors.textPrimary }]}>WanderMate AI</Text>
-          <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>Your travel co-pilot</Text>
+          <View style={styles.headerRow}>
+            <View style={styles.headerCopy}>
+              <Text style={[styles.title, { color: theme.colors.textPrimary }]}>WanderMate AI</Text>
+              <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>Your travel co-pilot</Text>
+            </View>
+            <Pressable
+              onPress={handleRefreshChat}
+              disabled={loading}
+              style={({ pressed }) => [
+                styles.refreshButton,
+                {
+                  borderColor: theme.colors.border,
+                  opacity: loading ? 0.5 : pressed ? 0.8 : 1
+                }
+              ]}
+            >
+              <Ionicons name="refresh-outline" size={18} color={theme.colors.textPrimary} />
+            </Pressable>
+          </View>
         </View>
 
         {/* Messages */}
@@ -416,6 +453,16 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   container: { flex: 1 },
   header: { paddingHorizontal: 20, paddingVertical: 12 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerCopy: { flex: 1, marginRight: 10 },
+  refreshButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
   title: { fontSize: 18, fontWeight: '700' },
   subtitle: { marginTop: 4, fontSize: 12 },
   messages: { paddingHorizontal: 16, paddingBottom: 8, flexGrow: 1 },
