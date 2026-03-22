@@ -57,6 +57,7 @@ const ChatScreen = () => {
   const [messages, setMessages] = useState<ChatMessage[]>(getChatMessages());
   const [loading, setLoading] = useState(false);
   const flatListRef = useRef<FlatList>(null);
+  const requestTokenRef = useRef(0);
 
   useEffect(() => {
     return subscribeToChat((msgs) => {
@@ -82,22 +83,11 @@ const ChatScreen = () => {
   };
 
   const handleRefreshChat = () => {
-    if (loading) return;
-    Alert.alert(
-      'Start new chat?',
-      'This will clear previous messages and start a fresh trip planning chat.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Refresh',
-          style: 'destructive',
-          onPress: () => {
-            setMessage('');
-            resetChatMessages();
-          }
-        }
-      ]
-    );
+    // Invalidate any in-flight response so it cannot repopulate cleared chat.
+    requestTokenRef.current += 1;
+    setLoading(false);
+    setMessage('');
+    resetChatMessages();
   };
 
   const renderBubbleText = (text: string) => {
@@ -133,14 +123,19 @@ const ChatScreen = () => {
     setMessage('');
 
     setLoading(true);
+    const requestToken = requestTokenRef.current + 1;
+    requestTokenRef.current = requestToken;
 
     try {
       const history = buildHistory(getChatMessages());
       const response = await sendChatMessage({ message: value, history });
+      if (requestToken !== requestTokenRef.current) return;
       addAssistantMessage(response.reply || 'I am here to help with your travel plans.', response.data);
     } catch {
+      if (requestToken !== requestTokenRef.current) return;
       addAssistantMessage('Sorry, something went wrong. Please try again.');
     } finally {
+      if (requestToken !== requestTokenRef.current) return;
       setLoading(false);
     }
   };
@@ -373,12 +368,11 @@ const ChatScreen = () => {
             </View>
             <Pressable
               onPress={handleRefreshChat}
-              disabled={loading}
               style={({ pressed }) => [
                 styles.refreshButton,
                 {
                   borderColor: theme.colors.border,
-                  opacity: loading ? 0.5 : pressed ? 0.8 : 1
+                  opacity: pressed ? 0.8 : 1
                 }
               ]}
             >

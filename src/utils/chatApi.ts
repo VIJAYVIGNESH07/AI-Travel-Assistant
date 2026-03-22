@@ -1,7 +1,7 @@
 import { ChatApiResponse, ChatRequest } from './chatTypes';
 
 const GROQ_API_KEY = process.env.EXPO_PUBLIC_GROQ_API_KEY || '';
-const GROQ_MODEL = process.env.EXPO_PUBLIC_GROQ_MODEL || 'llama-3.1-8b-instant';
+const GROQ_MODEL = process.env.EXPO_PUBLIC_GROQ_MODEL || 'llama-3.3-70b-versatile';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
